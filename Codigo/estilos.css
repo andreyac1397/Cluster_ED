@@ -1,0 +1,617 @@
+/* =========================================================
+   EXAMEN FINAL - WINE CLUSTERING
+   ========================================================= */
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #1f2937;
+  background: #f4f7fb;
+}
+
+/* =========================================================
+   CONTENIDO PRINCIPAL
+   ========================================================= */
+
+.main-container {
+  width: 96% !important;
+  max-width: 1600px !important;
+  margin: 25px auto !important;
+  padding: 40px 45px !important;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.07);
+}
+
+/* Más espacio para el contenido cuando existe TOC */
+.toc-content {
+  padding-left: 30px !important;
+  padding-right: 15px !important;
+}
+
+/* =========================================================
+   PORTADA
+   ========================================================= */
+
+.portada {
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.portada-contenido {
+  width: 100%;
+  max-width: 850px;
+  padding: 55px 60px;
+  background: linear-gradient(145deg,#fff,#f7f9fc);
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  box-shadow: 0 15px 45px rgba(0,0,0,.10);
+}
+
+.institucion {
+  margin-bottom: 8px;
+  font-size: 25px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.carrera {
+  margin-bottom: 45px;
+  font-size: 18px;
+  color: #6b7280;
+}
+
+.titulo-portada {
+  margin-bottom: 5px !important;
+  border: 0 !important;
+  font-size: 48px !important;
+  font-weight: 800;
+}
+
+.subtitulo-portada {
+  margin: 0 0 35px !important;
+  border: 0 !important;
+  font-size: 28px !important;
+  font-weight: 500;
+  color: #2563eb;
+}
+
+.datos-portada {
+  max-width: 500px;
+  margin: 25px auto 30px;
+  padding: 20px;
+  background: #eef4ff;
+  border-left: 5px solid #2563eb;
+  border-radius: 14px;
+}
+
+.datos-portada p { margin: 6px 0; font-size: 17px; }
+
+.integrantes { margin-top: 35px; }
+.integrantes h3 { margin-bottom: 15px; color: #111827; }
+.integrantes p { margin: 5px 0; color: #4b5563; }
+
+.fecha-portada {
+  margin-top: 35px;
+  color: #4b5563;
+}
+
+/* =========================================================
+   TÍTULOS Y TEXTO
+   ========================================================= */
+
+h1 {
+  margin: 55px 0 22px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #2563eb;
+  font-size: 32px;
+  font-weight: 750;
+  color: #111827;
+}
+
+h2 {
+  margin: 38px 0 18px;
+  padding-left: 12px;
+  border-left: 4px solid #2563eb;
+  font-size: 25px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+h3 {
+  margin: 28px 0 14px;
+  font-size: 20px;
+  font-weight: 650;
+  color: #374151;
+}
+
+p { margin-bottom: 16px; }
+strong { color: #111827; }
+
+/* =========================================================
+   TABLA DE CONTENIDO
+   ========================================================= */
+
+#TOC {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px rgba(0,0,0,.06);
+}
+
+.tocify {
+  width: 300px !important;
+  max-width: 300px !important;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#TOC ul { padding-left: 15px; }
+
+#TOC li,
+.tocify-item {
+  margin: 4px 0;
+  line-height: 1.35;
+  white-space: normal !important;
+}
+
+#TOC a,
+.tocify-item a {
+  display: block;
+  padding: 6px 8px;
+  color: #374151;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  border-radius: 7px;
+  transition: .2s;
+}
+
+#TOC a:hover { color: #2563eb; background: #eef4ff; }
+
+.tocify-item.active {
+  font-weight: 700;
+}
+
+/* =========================================================
+   CÓDIGO R
+   ========================================================= */
+
+div.sourceCode {
+  margin: 18px 0;
+  overflow: hidden;
+  background: #111827 !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,.08);
+}
+
+div.sourceCode pre.sourceCode {
+  margin: 0 !important;
+  padding: 18px 20px !important;
+  overflow-x: auto;
+  background: transparent !important;
+  border: 0 !important;
+  color: #f9fafb !important;
+  white-space: pre !important;
+}
+
+div.sourceCode code.sourceCode {
+  font-family: "Cascadia Code","Consolas","Courier New",monospace !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  white-space: pre !important;
+}
+
+div.sourceCode code span {
+  display: inline !important;
+  position: static !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  float: none !important;
+}
+
+/* Sintaxis */
+.sourceCode .co { color:#9ca3af !important; font-style:italic; }
+.sourceCode .st,.sourceCode .ss { color:#86efac !important; }
+.sourceCode .dv,.sourceCode .fl { color:#fbbf24 !important; }
+.sourceCode .ot { color:#f472b6 !important; }
+.sourceCode .cf,.sourceCode .kw { color:#60a5fa !important; font-weight:600; }
+.sourceCode .fu { color:#c084fc !important; }
+.sourceCode .va { color:#f9fafb !important; }
+.sourceCode .cn { color:#fb7185 !important; }
+.sourceCode .op { color:#93c5fd !important; }
+.sourceCode .sc { color:#f9a8d4 !important; }
+.sourceCode .at { color:#fcd34d !important; }
+
+/* =========================================================
+   RESULTADOS DE R
+   ========================================================= */
+
+pre:not(.sourceCode) {
+  margin: 18px 0;
+  padding: 16px 18px !important;
+  overflow-x: auto;
+  background: #f8fafc !important;
+  color: #1f2937 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px;
+  font-family: "Cascadia Code","Consolas","Courier New",monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* =========================================================
+   TABLAS
+   ========================================================= */
+
+table,
+.table {
+  width: 100% !important;
+  margin: 22px 0 30px !important;
+  border-collapse: separate !important;
+  border-spacing: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dfe4ea;
+  border-radius: 12px;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+
+thead,
+table thead,
+.table thead {
+  background: #1f2937;
+  color: #fff;
+}
+
+th,
+.table th {
+  padding: 12px 14px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  font-weight: 650;
+  white-space: normal !important;
+  border-bottom: 2px solid #d1d5db !important;
+}
+
+td,
+.table td {
+  padding: 10px 14px !important;
+  text-align: center;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  white-space: normal !important;
+}
+
+/* Columna de variables */
+th:first-child,
+td:first-child {
+  min-width: 175px;
+  text-align: left !important;
+  font-weight: 600;
+}
+
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eef4ff; }
+tbody tr:last-child td { border-bottom: 0 !important; }
+
+caption {
+  padding: 8px 2px 10px;
+  caption-side: top;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 650;
+  color: #374151;
+}
+
+/* =========================================================
+   GRÁFICOS
+   ========================================================= */
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.figure {
+  margin: 30px 0;
+  text-align: center;
+}
+
+.figure img {
+  box-shadow: 0 5px 20px rgba(0,0,0,.08);
+}
+
+.caption {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* =========================================================
+   BLOQUES DE ANÁLISIS
+   ========================================================= */
+
+.analisis,
+.hallazgo,
+.advertencia {
+  margin: 22px 0;
+  padding: 18px 22px;
+  border-radius: 10px;
+}
+
+.analisis {
+  background: #f8fafc;
+  border-left: 5px solid #2563eb;
+}
+
+.hallazgo {
+  background: #f0fdf4;
+  border-left: 5px solid #16a34a;
+}
+
+.advertencia {
+  background: #fff7ed;
+  border-left: 5px solid #f97316;
+}
+
+/* =========================================================
+   BOTONES
+   ========================================================= */
+
+.btn,
+button.code-folding-btn {
+  border: 0 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.btn-default,
+button.code-folding-btn {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+
+.btn-default:hover,
+button.code-folding-btn:hover {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+}
+
+/* =========================================================
+   RECURSOS DEL PROYECTO
+   ========================================================= */
+
+.recursos-proyecto {
+  width: 100%;
+  margin: 25px 0 45px;
+}
+
+.recursos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 18px;
+}
+
+.recurso-boton {
+  width: 100%;
+  min-height: 105px;
+  display: flex;
+  align-items: center;
+  padding: 18px 20px;
+  background: #fff;
+  color: #1f2937 !important;
+  border: 1px solid #dfe3e8;
+  border-radius: 13px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.05);
+  text-align: left;
+  text-decoration: none !important;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+
+.recurso-boton:hover {
+  transform: translateY(-3px);
+  border-color: #93b4f5;
+  box-shadow: 0 8px 22px rgba(0,0,0,.09);
+}
+
+.recurso-icono {
+  width: 55px;
+  height: 55px;
+  flex: 0 0 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  background: #f1f5f9;
+  border-radius: 11px;
+}
+
+.recurso-icono img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+.recurso-contenido {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recurso-contenido strong {
+  margin-bottom: 5px;
+  font-size: 15px;
+}
+
+.recurso-contenido small {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   SCROLL
+   ========================================================= */
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* Escritorio intermedio / ventana no maximizada */
+@media (min-width: 901px) and (max-width: 1350px) {
+
+  .main-container {
+    width: 98% !important;
+    max-width: none !important;
+    padding: 30px 25px !important;
+  }
+
+  /* TOC un poco más angosto */
+  .tocify {
+    width: 270px !important;
+    max-width: 270px !important;
+  }
+
+  /* Más separación entre TOC y contenido */
+  .toc-content {
+    padding-left: 50px !important;
+    padding-right: 10px !important;
+  }
+
+  /* Un poco más compacto para aprovechar espacio */
+  #TOC {
+    padding: 14px 12px;
+  }
+
+  #TOC a,
+  .tocify-item a {
+    padding: 5px 6px;
+    font-size: 14px;
+  }
+
+  table,
+  .table {
+    font-size: 13px;
+  }
+}
+
+
+/* Pantallas pequeñas */
+@media (max-width: 900px) {
+
+  .main-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 25px 20px !important;
+    border-radius: 0;
+  }
+
+  .toc-content {
+    padding: 0 !important;
+  }
+
+  .portada {
+    min-height: auto;
+    padding: 20px 0;
+  }
+
+  .portada-contenido {
+    padding: 35px 25px;
+  }
+
+  .titulo-portada {
+    font-size: 36px !important;
+  }
+
+  .subtitulo-portada {
+    font-size: 22px !important;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  table,
+  .table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+
+/* Celular */
+@media (max-width: 650px) {
+
+  .recursos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   IMPRESIÓN
+   ========================================================= */
+
+@media print {
+  body { background: #fff; }
+
+  .main-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none;
+  }
+
+  #TOC { box-shadow: none; }
+
+  .portada {
+    min-height: 100vh;
+    page-break-after: always;
+  }
+
+  div.sourceCode pre.sourceCode,
+  pre:not(.sourceCode) {
+    white-space: pre-wrap !important;
+  }
+
+  .btn,
+  button.code-folding-btn {
+    display: none !important;
+  }
+
+  table,
+  .recurso-boton {
+    box-shadow: none;
+  }
+}

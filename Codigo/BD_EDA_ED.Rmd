@@ -1,0 +1,576 @@
+---
+title: ""
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 1
+    number_sections: true
+    css: estilos.css
+    code_folding: show
+    df_print: kable
+---
+
+```{r configuracion, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+<div class="portada">
+
+<div class="portada-contenido">
+
+<p class="institucion">Colegio Universitario de Cartago</p>
+
+<p class="carrera">Tecnologías de Información – Big Data BD-142</p>
+
+<h1 class="titulo-portada">Examen Final</h1>
+
+<h2 class="subtitulo-portada">Análisis Exploratorio de Datos</h2>
+
+<div class="datos-portada">
+
+<p><strong>Grupo:</strong> #2</p>
+
+<p><strong>Dataset:</strong> Wine Clustering</p>
+
+</div>
+
+<div class="integrantes">
+
+<h3>Integrantes</h3>
+
+<p>Carlos Alberto Cambronero Zúñiga</p>
+
+<p>Desmond Akin Bermúdez Rodríguez</p>
+
+<p>Jeremy Ramírez Pérez</p>
+
+<p>Samiel Jiménez Portuguez</p>
+
+<p>Andrei Calderón Vega</p>
+
+</div>
+
+<p class="fecha-portada"><strong>Fecha de entrega:</strong> 17 de agosto de 2026</p>
+
+</div>
+
+</div>
+
+
+# Análisis preexploratorio
+
+## Descripción inicial del problema
+
+El dataset **Wine Clustering** contiene diferentes mediciones químicas de muestras de vino.  
+Antes de realizar el análisis exploratorio y aplicar un modelo de clustering, es necesario conocer cómo vienen los datos, revisar su calidad y detectar características que puedan ser importantes para las siguientes etapas del análisis.
+
+## Objetivo del análisis
+
+Realizar un análisis preexploratorio del dataset para conocer su estructura, calidad, estadísticas principales, dispersión y posibles valores atípicos. Los resultados obtenidos servirán posteriormente para plantear preguntas específicas que serán investigadas en el EDA.
+
+# Carga de datos
+
+## Importación del dataset
+
+```{r}
+# Ruta del dataset
+ruta_dataset <- "../Data/archive/wine-clustering.csv"
+
+# Verificar que el archivo exista
+if (!file.exists(ruta_dataset)) {
+  stop("No se encontró el archivo wine-clustering.csv.")
+}
+
+# Cargar dataset
+wine <- read.csv(
+  ruta_dataset,
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+cat("Dataset cargado correctamente.")
+```
+
+## Dimensiones del dataset
+
+```{r}
+cat("Cantidad de filas:", nrow(wine), "\n")
+cat("Cantidad de columnas:", ncol(wine))
+```
+
+## Variables del dataset
+
+```{r}
+names(wine)
+```
+
+## Tipos de variables
+
+```{r}
+sapply(wine, class)
+```
+
+## Cantidad de variables numéricas
+
+```{r}
+cantidad_numericas <- sum(sapply(wine, is.numeric))
+
+cat("Variables numéricas:", cantidad_numericas, "\n")
+cat("Total de variables:", ncol(wine))
+```
+
+# Calidad inicial de los datos
+
+## Valores faltantes
+
+```{r}
+faltantes <- sum(is.na(wine))
+
+cat("Cantidad total de valores faltantes:", faltantes)
+```
+
+## Valores faltantes por variable
+
+```{r}
+colSums(is.na(wine))
+```
+
+## Registros duplicados
+
+```{r}
+duplicados <- sum(duplicated(wine))
+
+cat("Cantidad de registros duplicados:", duplicados)
+```
+
+## Porcentaje de registros duplicados
+
+```{r}
+porcentaje_duplicados <- (duplicados / nrow(wine)) * 100
+
+cat("Porcentaje de duplicados:", round(porcentaje_duplicados, 2), "%")
+```
+
+# Estadísticas descriptivas iniciales
+
+## Resumen general del dataset
+
+```{r}
+summary(wine)
+```
+
+El resumen permite observar el mínimo, primer cuartil, mediana, promedio, tercer cuartil y máximo de cada variable.
+
+## Promedios
+
+```{r}
+promedios <- colMeans(wine, na.rm = TRUE)
+
+round(promedios, 2)
+```
+
+## Medianas
+
+```{r}
+medianas <- sapply(wine, median, na.rm = TRUE)
+
+round(medianas, 2)
+```
+
+## Desviación estándar
+
+```{r}
+desviaciones <- sapply(wine, sd, na.rm = TRUE)
+
+round(desviaciones, 2)
+```
+
+La desviación estándar permite conocer qué tanto se alejan los datos del promedio de cada variable.
+
+## Rango de las variables
+
+```{r}
+rangos <- sapply(wine, function(x) {
+  max(x, na.rm = TRUE) - min(x, na.rm = TRUE)
+})
+
+round(rangos, 2)
+```
+
+El rango permite conocer la diferencia entre el valor mínimo y máximo de cada variable.
+
+# Detección numérica de posibles valores atípicos
+
+## Cantidad de outliers por variable
+
+```{r}
+# Función sencilla para contar outliers con el método IQR
+contar_outliers <- function(x) {
+  
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  
+  IQR_valor <- Q3 - Q1
+  
+  limite_inferior <- Q1 - 1.5 * IQR_valor
+  limite_superior <- Q3 + 1.5 * IQR_valor
+  
+  sum(
+    x < limite_inferior | x > limite_superior,
+    na.rm = TRUE
+  )
+}
+
+outliers <- sapply(wine, contar_outliers)
+
+outliers
+```
+
+## Porcentaje de outliers por variable
+
+```{r}
+porcentaje_outliers <- (outliers / nrow(wine)) * 100
+
+round(porcentaje_outliers, 2)
+```
+
+Este resultado permite observar cuáles variables presentan mayor cantidad de posibles valores atípicos.
+
+# Comparación de datos con y sin posibles outliers
+
+## Crear una versión temporal sin outliers
+
+```{r}
+# Inicialmente todas las filas se consideran válidas
+filas_validas <- rep(TRUE, nrow(wine))
+
+# Revisar cada variable
+for (columna in names(wine)) {
+  
+  Q1 <- quantile(wine[[columna]], 0.25, na.rm = TRUE)
+  Q3 <- quantile(wine[[columna]], 0.75, na.rm = TRUE)
+  
+  IQR_valor <- Q3 - Q1
+  
+  limite_inferior <- Q1 - 1.5 * IQR_valor
+  limite_superior <- Q3 + 1.5 * IQR_valor
+  
+  filas_validas <- filas_validas &
+    wine[[columna]] >= limite_inferior &
+    wine[[columna]] <= limite_superior
+}
+
+# Crear dataset temporal sin posibles outliers
+wine_sin_outliers <- wine[filas_validas, ]
+
+cat("Filas originales:", nrow(wine), "\n")
+cat("Filas sin posibles outliers:", nrow(wine_sin_outliers), "\n")
+cat("Filas con algún posible outlier:",
+    nrow(wine) - nrow(wine_sin_outliers))
+```
+
+Esta versión del dataset se utiliza únicamente para comparar el efecto de los posibles valores atípicos. No significa que estos datos serán eliminados definitivamente.
+
+# Comparación de estadísticas
+
+## Resumen del dataset original
+
+```{r}
+summary(wine)
+```
+
+## Resumen sin posibles outliers
+
+```{r}
+summary(wine_sin_outliers)
+```
+
+## Comparación de promedios
+
+```{r}
+promedio_original <- colMeans(wine, na.rm = TRUE)
+
+promedio_sin_outliers <- colMeans(
+  wine_sin_outliers,
+  na.rm = TRUE
+)
+
+comparacion_promedios <- data.frame(
+  Variable = names(wine),
+  Promedio_Original = round(promedio_original, 2),
+  Promedio_Sin_Outliers = round(promedio_sin_outliers, 2)
+)
+
+comparacion_promedios
+```
+
+## Cambio porcentual de los promedios
+
+```{r}
+cambio_promedio <- abs(
+  (promedio_sin_outliers - promedio_original) /
+  promedio_original
+) * 100
+
+comparacion_promedios$Cambio_Porcentual <- round(
+  cambio_promedio,
+  2
+)
+
+comparacion_promedios
+```
+
+El cambio porcentual permite observar cuáles variables modifican más su promedio cuando se excluyen temporalmente los posibles valores atípicos.
+
+## Comparación de medianas
+
+```{r}
+mediana_original <- sapply(
+  wine,
+  median,
+  na.rm = TRUE
+)
+
+mediana_sin_outliers <- sapply(
+  wine_sin_outliers,
+  median,
+  na.rm = TRUE
+)
+
+comparacion_medianas <- data.frame(
+  Variable = names(wine),
+  Mediana_Original = round(mediana_original, 2),
+  Mediana_Sin_Outliers = round(mediana_sin_outliers, 2)
+)
+
+comparacion_medianas
+```
+
+## Comparación de desviaciones estándar
+
+```{r}
+desviacion_original <- sapply(
+  wine,
+  sd,
+  na.rm = TRUE
+)
+
+desviacion_sin_outliers <- sapply(
+  wine_sin_outliers,
+  sd,
+  na.rm = TRUE
+)
+
+comparacion_desviacion <- data.frame(
+  Variable = names(wine),
+  Desviacion_Original = round(desviacion_original, 2),
+  Desviacion_Sin_Outliers = round(desviacion_sin_outliers, 2)
+)
+
+comparacion_desviacion
+```
+
+# Revisión de diferencias de escala
+
+## Valores mínimos, máximos y rango
+
+```{r}
+minimos <- sapply(wine, min, na.rm = TRUE)
+maximos <- sapply(wine, max, na.rm = TRUE)
+
+escalas <- data.frame(
+  Variable = names(wine),
+  Minimo = round(minimos, 2),
+  Maximo = round(maximos, 2),
+  Rango = round(maximos - minimos, 2)
+)
+
+escalas
+```
+
+Esta comparación permite identificar si existen variables con escalas muy diferentes. Esto será importante posteriormente porque los métodos de clustering basados en distancias pueden verse afectados por variables con valores numéricos mucho mayores que otras.
+
+# 9 Hallazgos del análisis preexploratorio
+
+El análisis preexploratorio permitió conocer el estado inicial del dataset y detectar varios aspectos importantes antes de comenzar el EDA. El conjunto contiene **`r nrow(wine)` observaciones y `r ncol(wine)` variables**, y `r if(all(sapply(wine, is.numeric))) "todas las variables son numéricas" else "no todas las variables son numéricas"`, por lo que pueden utilizarse posteriormente en análisis estadísticos y técnicas de clustering.
+
+En cuanto a la calidad de los datos, **no se encontraron valores faltantes ni registros duplicados**. Esto indica que el dataset se encuentra completo en estos aspectos y que no es necesario eliminar o completar registros por problemas de datos nulos o repetidos.
+
+Se encontraron posibles valores atípicos mediante el método IQR. Las variables con mayor cantidad fueron **`r paste(names(outliers[outliers == max(outliers)]), collapse = ", ")`, con `r max(outliers)` valores atípicos cada una**; seguidas de **`r paste(names(outliers[outliers == 3]), collapse = " y ")`, con 3 cada una**, **`r paste(names(outliers[outliers == 2]), collapse = ", ")` con 2** y **`r paste(names(outliers[outliers == 1]), collapse = ", ")` con 1**. En cambio, variables como `r paste(names(outliers[outliers == 0]), collapse = ", ")` no presentaron outliers según este criterio. En total, **`r nrow(wine) - nrow(wine_sin_outliers)` de las `r nrow(wine)` filas contienen al menos un posible valor atípico**.
+
+Al comparar el dataset original con la versión temporal sin esas `r nrow(wine) - nrow(wine_sin_outliers)` observaciones, **los promedios no presentan cambios muy grandes**. Por ejemplo, Alcohol pasa de `r sprintf("%.2f", mean(wine$Alcohol, na.rm = TRUE))` a `r sprintf("%.2f", mean(wine_sin_outliers$Alcohol, na.rm = TRUE))`, Magnesium de `r sprintf("%.2f", mean(wine$Magnesium, na.rm = TRUE))` a `r sprintf("%.2f", mean(wine_sin_outliers$Magnesium, na.rm = TRUE))` y Proline de `r sprintf("%.1f", mean(wine$Proline, na.rm = TRUE))` a `r sprintf("%.1f", mean(wine_sin_outliers$Proline, na.rm = TRUE))`. Proanthocyanins presenta uno de los cambios relativos más notorios, pasando de `r sprintf("%.2f", mean(wine$Proanthocyanins, na.rm = TRUE))` a `r sprintf("%.2f", mean(wine_sin_outliers$Proanthocyanins, na.rm = TRUE))`, pero aun así la diferencia es pequeña. Esto sugiere inicialmente que los posibles outliers **no están modificando de manera extrema el comportamiento general de las variables**, por lo que no existe todavía una razón suficiente para eliminarlos automáticamente.
+
+También se observaron **diferencias muy grandes en las escalas de las variables**. Por ejemplo, Proline presenta valores entre `r min(wine$Proline, na.rm = TRUE)` y `r max(wine$Proline, na.rm = TRUE)`, mientras que Nonflavanoid_Phenols se encuentra aproximadamente entre `r sprintf("%.2f", min(wine$Nonflavanoid_Phenols, na.rm = TRUE))` y `r sprintf("%.2f", max(wine$Nonflavanoid_Phenols, na.rm = TRUE))`. Magnesium también trabaja con valores mucho mayores que variables como Hue, Ash o Flavanoids. Esto es especialmente importante porque un algoritmo basado en distancias, como K-Means, podría dar mayor peso a las variables con números más grandes si los datos se utilizan directamente sin estandarización.
+
+Las estadísticas también muestran diferencias importantes entre algunas medias y medianas. Por ejemplo, **Proline tiene una media de `r sprintf("%.1f", mean(wine$Proline, na.rm = TRUE))` y una mediana de `r sprintf("%.1f", median(wine$Proline, na.rm = TRUE))`**, mientras que **Malic_Acid tiene una media de `r sprintf("%.3f", mean(wine$Malic_Acid, na.rm = TRUE))` y una mediana de `r sprintf("%.3f", median(wine$Malic_Acid, na.rm = TRUE))`**. Estas diferencias indican que la distribución de algunas variables podría no ser completamente simétrica, aspecto que conviene investigar posteriormente mediante el EDA.
+
+En general, el preexploratorio muestra que **el dataset tiene buena calidad inicial, no requiere limpieza por valores faltantes o duplicados, contiene algunos posibles valores atípicos cuyo impacto parece limitado y presenta importantes diferencias de escala entre las variables**. Estos hallazgos dan una base clara para que el EDA investigue con mayor detalle las distribuciones, relaciones entre variables, posibles patrones y cuáles características químicas podrían ser más importantes para diferenciar grupos de vinos.
+
+10 Preguntas que surgen para el EDA
+
+A partir de los hallazgos obtenidos en el análisis preexploratorio, se plantea una pregunta principal que guiará el desarrollo del EDA y posteriormente el proceso de clustering.
+
+10.1 Pregunta principal
+
+¿Es posible identificar grupos de vinos con características químicas similares y determinar cuáles variables contribuyen más a diferenciarlos?
+
+10.2 Preguntas derivadas
+¿Cuáles variables presentan mayor variabilidad entre las muestras de vino y podrían contribuir más a diferenciarlas?
+¿Qué comportamiento presentan las variables que mostraron posibles valores atípicos, especialmente Ash_Alcanity, Magnesium y Color_Intensity?
+¿Los posibles valores atípicos representan casos aislados o forman parte del comportamiento natural de las variables?
+¿Qué variables presentan distribuciones asimétricas, considerando las diferencias observadas entre sus medias y medianas, como ocurre con Proline y Malic_Acid?
+¿Qué relaciones existen entre las diferentes características químicas de los vinos y cuáles variables presentan asociaciones fuertes entre sí?
+¿Las diferencias de escala observadas entre variables como Proline, Magnesium y otras características de menor magnitud hacen necesaria la estandarización antes de aplicar clustering?
+¿Se pueden observar patrones o agrupaciones naturales entre las muestras al analizar conjuntamente las variables químicas?
+
+Estas preguntas permitirán que el EDA se enfoque en investigar los principales aspectos detectados durante el análisis preexploratorio y aporte información útil para seleccionar, preparar e interpretar las variables que posteriormente serán utilizadas en el modelado.
+
+# Descripción de variables y estadísticas exploratorias
+
+## Descripción del dataset
+
+## Diccionario de variables
+
+## Estadísticas descriptivas
+
+
+# Selección de variables y justificación
+
+## Evaluación de variables
+
+## Variables seleccionadas
+
+## Variables eliminadas
+
+## Justificación de la selección
+
+
+# EDA - Análisis Exploratorio de Datos
+
+## Análisis univariado
+
+### Distribuciones
+
+### Histogramas
+
+### Diagramas de caja
+
+### Valores atípicos
+
+### Hallazgos del análisis univariado
+
+
+## Análisis bivariado
+
+### Relaciones entre variables
+
+### Gráficos de dispersión
+
+### Correlaciones
+
+### Variables redundantes
+
+### Hallazgos del análisis bivariado
+
+
+## Análisis multivariado
+
+### Matriz de correlación
+
+### Relaciones entre múltiples variables
+
+### Patrones multivariados
+
+### Posibles agrupaciones
+
+### Hallazgos del análisis multivariado
+
+
+# Preparación de datos para el modelado
+
+## Variables finales
+
+## Estandarización
+
+## Justificación de la estandarización
+
+
+# Análisis de Componentes Principales - PCA
+
+## Aplicación de PCA
+
+## Varianza explicada
+
+## Componentes principales
+
+## Variables con mayor aporte
+
+## Visualización PCA
+
+## Interpretación del PCA
+
+
+# Modelado
+
+## Método del codo
+
+## Método de silueta
+
+## Selección del número de clusters
+
+## Modelo K-Means
+
+## Visualización de clusters
+
+
+# Evaluación e interpretación del modelo
+
+## Calidad de los clusters
+
+## Características de cada cluster
+
+## Variables que diferencian los grupos
+
+## Comparación de perfiles químicos
+
+## Respuesta a las preguntas de análisis
+
+
+# Conclusiones
+
+## Principales hallazgos
+
+## Respuesta a la problemática principal
+
+## Limitaciones
+
+## Conclusión final
+
+# Recursos del proyecto
+
+En esta sección se encuentran los principales archivos, respaldos y enlaces relacionados con el desarrollo del proyecto.
+
+<section class="recursos-proyecto">
+<div class="recursos-grid">
+
+<a href="https://github.com/andreyac1397/Cluster_ED.git" class="recurso-boton" target="_blank" rel="noopener noreferrer"><span class="recurso-icono"><img src="Iconos/github.png" alt="Icono de GitHub"></span><span class="recurso-contenido"><strong>Repositorio de GitHub</strong><small>Código fuente, archivo R Markdown y estilos CSS</small></span></a>
+
+<a href="https://drive.google.com/drive/folders/1Xbqcd7RJIfNxUOXHL10rb12A-nh_g6oV?usp=sharing" class="recurso-boton" target="_blank" rel="noopener noreferrer"><span class="recurso-icono"><img src="Iconos/respaldo.png" alt="Icono de respaldo"></span><span class="recurso-contenido"><strong>Carpeta de respaldo</strong><small>Archivos y copias de seguridad del proyecto</small></span></a>
+
+<a href="https://www.kaggle.com/datasets/harrywang/wine-dataset-for-clustering" class="recurso-boton" target="_blank" rel="noopener noreferrer"><span class="recurso-icono"><img src="Iconos/dataset.png" alt="Icono del dataset"></span><span class="recurso-contenido"><strong>Dataset original</strong><small>Fuente de los datos utilizada en el proyecto</small></span></a>
+
+<a href="https://drive.google.com/drive/folders/1nESzwl9bV7CT2P4NmTiz_GjIUGnTRf4s?usp=sharing" class="recurso-boton" target="_blank" rel="noopener noreferrer"><span class="recurso-icono"><img src="Iconos/ppt.png" alt="Icono de Canva"></span><span class="recurso-contenido"><strong>Presentación del proyecto</strong><small>Consultar la presentación realizada en Canva</small></span></a>
+
+<button type="button" class="recurso-boton" onclick="window.print()"><span class="recurso-icono"><img src="Iconos/pdf.png" alt="Icono de PDF"></span><span class="recurso-contenido"><strong>Guardar informe en PDF</strong><small>Abrir la impresión y elegir dónde guardarlo</small></span></button>
+
+<a href="" class="recurso-boton" target="_blank" rel="noopener noreferrer"><span class="recurso-icono"><img src="Iconos/web.png" alt="Icono del sitio web"></span><span class="recurso-contenido"><strong>HTML publicado</strong><small>Consultar el informe interactivo en línea</small></span></a>
+
+</div>
+</section>
