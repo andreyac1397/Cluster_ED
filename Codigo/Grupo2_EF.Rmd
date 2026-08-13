@@ -14,6 +14,7 @@ output:
 ---
 
 ```{r configuracion, include=FALSE}
+library(knitr)
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
@@ -438,8 +439,47 @@ Estas preguntas permitirán que el EDA se enfoque en investigar los principales 
 
 ## Diccionario de variables
 
+```{r}
+diccionario <- data.frame(
+  Variable = names(wine),
+  Descripcion = c(
+    "Grado alcohólico del vino",
+    "Ácido málico",
+    "Contenido de cenizas",
+    "Alcalinidad de las cenizas",
+    "Contenido de magnesio",
+    "Fenoles totales",
+    "Flavonoides",
+    "Fenoles no flavonoides",
+    "Proantocianinas",
+    "Intensidad del color",
+    "Tono del color",
+    "Absorbancia OD280/OD315 (pureza de proteínas)",
+    "Prolina (aminoácido)"
+  ),
+  Tipo = sapply(wine, class)
+)
+
+kable(diccionario, row.names = FALSE,
+      col.names = c("Variable", "Descripción", "Tipo"))
+```
+
 ## Estadísticas descriptivas
 
+```{r}
+estadisticas <- data.frame(
+  Media = sapply(wine, mean),
+  Mediana = sapply(wine, median),
+  Desv_Estandar = sapply(wine, sd),
+  Q1 = sapply(wine, function(x) quantile(x, 0.25)),
+  Q3 = sapply(wine, function(x) quantile(x, 0.75)),
+  Minimo = sapply(wine, min),
+  Maximo = sapply(wine, max)
+)
+
+kable(round(estadisticas, 2),
+      col.names = c("Media", "Mediana", "Desv. Estándar", "Q1", "Q3", "Mínimo", "Máximo"))
+```
 
 # Selección de variables y justificación
 
@@ -458,14 +498,107 @@ Estas preguntas permitirán que el EDA se enfoque en investigar los principales 
 
 ### Distribuciones
 
+```{r}
+for (var in names(wine)) {
+  hist(wine[[var]],
+       main = paste("Distribución de", var),
+       xlab = var,
+       col = "#93c5fd",
+       border = "white",
+       breaks = 15)
+}
+```
+A partir de las medias y medianas calculadas en la sección anterior, se observan diferencias notables en algunas variables que sugieren distribuciones asimétricas. **Proline** presenta una media de 746.9 y una mediana de 673.5, con una diferencia considerable que indica una distribución sesgada hacia la derecha (cola de valores altos). De forma similar, **Malic_Acid** tiene una media de 2.34 frente a una mediana de 1.87, mostrando también asimetría positiva.
+
+En contraste, variables como **Alcohol** y **Ash** muestran medias y medianas muy cercanas entre sí, lo que sugiere distribuciones más simétricas, cercanas a una forma normal.
+
+Estas diferencias de forma son relevantes para el modelado posterior: variables muy asimétricas pueden requerir mayor atención al estandarizar antes de aplicar K-Means, ya que los valores extremos de la cola influyen más en la distancia euclidiana.
+
 ### Histogramas
+```{r}
+par(mfrow = c(1, 2))
+
+hist(wine$Proline,
+     main = "Histograma de Proline",
+     xlab = "Proline",
+     col = "#93c5fd",
+     border = "white",
+     breaks = 15)
+abline(v = mean(wine$Proline), col = "red", lwd = 2)
+abline(v = median(wine$Proline), col = "darkgreen", lwd = 2, lty = 2)
+
+hist(wine$Malic_Acid,
+     main = "Histograma de Malic_Acid",
+     xlab = "Malic_Acid",
+     col = "#93c5fd",
+     border = "white",
+     breaks = 15)
+abline(v = mean(wine$Malic_Acid), col = "red", lwd = 2)
+abline(v = median(wine$Malic_Acid), col = "darkgreen", lwd = 2, lty = 2)
+
+par(mfrow = c(1, 1))
+```
+
+Los histogramas de **Proline** y **Malic_Acid** muestran claramente la cola hacia la derecha mencionada anteriormente: la línea roja (media) queda desplazada hacia la derecha respecto a la línea verde punteada (mediana), confirmando la asimetría positiva en ambas variables.
 
 ### Diagramas de caja
+```{r}
+# Variables con escalas grandes (decenas/cientos)
+par(mfrow = c(1, 3))
+boxplot(wine$Magnesium, main = "Magnesium", col = "#93c5fd")
+boxplot(wine$Color_Intensity, main = "Color_Intensity", col = "#93c5fd")
+boxplot(wine$Proline, main = "Proline", col = "#93c5fd")
+par(mfrow = c(1, 1))
+```
+
+```{r}
+# Variables con escalas pequeñas (unidades/decimales)
+par(mfrow = c(2, 5))
+boxplot(wine$Alcohol, main = "Alcohol", col = "#93c5fd")
+boxplot(wine$Malic_Acid, main = "Malic_Acid", col = "#93c5fd")
+boxplot(wine$Ash, main = "Ash", col = "#93c5fd")
+boxplot(wine$Ash_Alcanity, main = "Ash_Alcanity", col = "#93c5fd")
+boxplot(wine$Total_Phenols, main = "Total_Phenols", col = "#93c5fd")
+boxplot(wine$Flavanoids, main = "Flavanoids", col = "#93c5fd")
+boxplot(wine$Nonflavanoid_Phenols, main = "Nonflavanoid_Phenols", col = "#93c5fd")
+boxplot(wine$Proanthocyanins, main = "Proanthocyanins", col = "#93c5fd")
+boxplot(wine$Hue, main = "Hue", col = "#93c5fd")
+boxplot(wine$OD280, main = "OD280", col = "#93c5fd")
+par(mfrow = c(1, 1))
+```
+
+Los diagramas de caja permiten visualizar directamente los posibles valores atípicos (puntos fuera de los bigotes) detectados previamente por el método IQR en la sección de análisis preexploratorio.
 
 ### Valores atípicos
+```{r}
+detectar_outliers <- function(x) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR_valor <- Q3 - Q1
+  limite_inferior <- Q1 - 1.5 * IQR_valor
+  limite_superior <- Q3 + 1.5 * IQR_valor
+  which(x < limite_inferior | x > limite_superior)
+}
+
+variables_con_outliers <- c("Ash_Alcanity", "Magnesium", "Color_Intensity",
+                             "Malic_Acid", "Ash", "Proanthocyanins", "Hue")
+
+for (var in variables_con_outliers) {
+  filas <- detectar_outliers(wine[[var]])
+  cat("Variable:", var, "- Filas atípicas:", paste(filas, collapse = ", "), "\n")
+}
+```
+
+Los valores atípicos identificados coinciden con los ya reportados en el análisis preexploratorio: **Ash_Alcanity, Magnesium y Color_Intensity** presentan la mayor cantidad (4 cada una), seguidas de **Malic_Acid y Ash** (3 cada una), **Proanthocyanins** (2) y **Hue** (1). Siguiendo el criterio definido por el grupo, ninguno de estos valores se elimina en esta etapa: se trata de observaciones reales dentro del rango químico esperado para distintos cultivares de vino, y su tratamiento definitivo se evaluará más adelante, en conjunto con el resto de variables, antes del modelado.
 
 ### Hallazgos del análisis univariado
 
+
+Después de revisar cada variable por separado, lo primero que noto es que la mayoría se comporta de forma bastante simétrica, pero hay dos que se salen del patrón: **Proline** y **Malic_Acid** tienen una asimetría hacia la derecha bastante marcada. Esto se ve tanto en los histogramas como en la diferencia entre su media y su mediana, que en ambos casos es notoria.
+
+Sobre los valores atípicos, encontré puntos fuera de rango en 7 de las 13 variables: Ash_Alcanity, Magnesium, Color_Intensity, Malic_Acid, Ash, Proanthocyanins y Hue. Las cantidades que me dieron coinciden con las que ya se habían calculado en el análisis preexploratorio, así que todo cuadra. Revisando esos valores, no parecen errores de digitación ni nada raro, están dentro de un rango que tiene sentido para vino, así que probablemente sea variabilidad normal entre los distintos cultivares y no algo que haya que corregir.
+
+Con esto le doy respuesta a varias de las preguntas que nos planteamos como grupo (la 1, la 2 y la 4), sobre variabilidad, comportamiento de los atípicos y asimetría. Y me parece que deja bien preparado el terreno para lo que sigue: el análisis bivariado y, más adelante, la estandarización antes de meter el modelo, porque tanto las diferencias de escala como estas asimetrías que encontré podrían afectarle a K-Means si no se manejan bien.
 
 ## Análisis bivariado
 
