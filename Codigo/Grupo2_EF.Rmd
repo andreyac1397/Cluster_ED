@@ -483,13 +483,151 @@ kable(round(estadisticas, 2),
 
 # Selección de variables y justificación
 
-## Evaluación de variables
+## Objetivo de la selección de variables
+
+La selección de variables tiene como propósito determinar cuáles características químicas aportan información útil para diferenciar las muestras de vino y cuáles podrían presentar información redundante. Debido a que el análisis posterior utilizará técnicas de clustering, la selección no debe basarse únicamente en una correlación alta, sino también en el significado de las variables y en su posible aporte a la formación de grupos.
+
+## Evaluación inicial de las variables
+
+Todas las variables del dataset son numéricas y no presentan valores faltantes. Además, cada una representa una característica química diferente de las muestras de vino. Por esta razón, inicialmente todas pueden considerarse candidatas para el análisis de clustering.
+
+```{r evaluacion-variables-carlos}
+# Verificar las variables disponibles
+variables_disponibles <- names(wine)
+
+# Verificar que todas sean numéricas
+variables_numericas <- sapply(wine, is.numeric)
+
+evaluacion_variables <- data.frame(
+  Variable = variables_disponibles,
+  Es_Numerica = ifelse(variables_numericas, "Sí", "No"),
+  Valores_Faltantes = colSums(is.na(wine)),
+  Valores_Unicos = sapply(wine, function(x) length(unique(x)))
+)
+
+knitr::kable(
+  evaluacion_variables,
+  caption = "Evaluación inicial de las variables del dataset",
+  align = c("l", "c", "c", "c")
+)
+```
+
+<div class="analisis">
+Todas las variables presentan valores numéricos y ninguna contiene datos faltantes. También se observa que las variables tienen suficiente cantidad de valores diferentes, por lo que no existe una característica constante o con variabilidad prácticamente nula que deba excluirse inmediatamente.
+</div>
+
+## Evaluación de posible redundancia
+
+Para identificar posible información redundante, se revisaron las correlaciones entre las características químicas. Una correlación alta indica que dos variables presentan un comportamiento lineal semejante, pero no significa necesariamente que midan exactamente el mismo fenómeno.
+
+Se utilizó como referencia una correlación absoluta igual o superior a 0.80 para identificar relaciones especialmente fuertes que requieren una revisión más detallada.
+
+```{r evaluacion-redundancia-carlos}
+# Calcular matriz de correlación
+matriz_correlacion <- cor(wine, use = "complete.obs")
+
+# Convertir la matriz en una tabla de pares
+pares_correlacion <- which(
+  upper.tri(matriz_correlacion),
+  arr.ind = TRUE
+)
+
+tabla_correlaciones <- data.frame(
+  Variable_1 = rownames(matriz_correlacion)[pares_correlacion[, 1]],
+  Variable_2 = colnames(matriz_correlacion)[pares_correlacion[, 2]],
+  Correlacion = matriz_correlacion[pares_correlacion]
+)
+
+# Agregar la magnitud absoluta para ordenar los resultados
+tabla_correlaciones$Correlacion_Absoluta <- abs(
+  tabla_correlaciones$Correlacion
+)
+
+# Ordenar desde la relación más fuerte
+tabla_correlaciones <- tabla_correlaciones[
+  order(
+    tabla_correlaciones$Correlacion_Absoluta,
+    decreasing = TRUE
+  ),
+]
+
+# Mostrar las relaciones con correlación absoluta mayor o igual a 0.80
+relaciones_muy_fuertes <- tabla_correlaciones[
+  tabla_correlaciones$Correlacion_Absoluta >= 0.80,
+  c("Variable_1", "Variable_2", "Correlacion")
+]
+
+relaciones_muy_fuertes$Correlacion <- round(
+  relaciones_muy_fuertes$Correlacion,
+  3
+)
+
+knitr::kable(
+  relaciones_muy_fuertes,
+  caption = "Relaciones con correlación absoluta igual o superior a 0.80",
+  align = c("l", "l", "c")
+)
+```
+
+<div class="hallazgo">
+La relación más fuerte se presenta entre Total_Phenols y Flavanoids. La correlación es positiva, lo que indica que las muestras con valores altos de fenoles totales también tienden a presentar valores altos de flavonoides.
+</div>
+
+<div class="advertencia">
+Aunque Total_Phenols y Flavanoids presentan una relación lineal muy fuerte, la correlación no es perfecta. Además, ambas variables representan características químicas relacionadas, pero no necesariamente idénticas. Por esta razón, no se considera suficiente eliminar automáticamente una de ellas.
+</div>
 
 ## Variables seleccionadas
 
+Después de revisar:
+
+- La calidad de las variables.
+- La cantidad de valores únicos.
+- Las relaciones lineales.
+- Las posibles asociaciones fuertes.
+- La ausencia de correlaciones perfectas.
+- El objetivo exploratorio del clustering.
+
+Se propone conservar las 13 variables originales para las siguientes etapas:
+
+```{r variables-seleccionadas-carlos}
+variables_seleccionadas <- names(wine)
+
+tabla_variables_seleccionadas <- data.frame(
+  Numero = seq_along(variables_seleccionadas),
+  Variable = variables_seleccionadas,
+  Decision = rep("Conservar", length(variables_seleccionadas))
+)
+
+knitr::kable(
+  tabla_variables_seleccionadas,
+  caption = "Variables seleccionadas para las siguientes etapas",
+  align = c("c", "l", "c")
+)
+```
+
 ## Variables eliminadas
 
+No se eliminó ninguna variable en esta etapa.
+
+```{r variables-eliminadas-carlos}
+variables_eliminadas <- character(0)
+
+cat("Cantidad de variables eliminadas:",
+    length(variables_eliminadas))
+```
+
 ## Justificación de la selección
+
+La decisión de conservar las 13 variables se basa en que no se encontraron características constantes, variables con valores faltantes ni correlaciones perfectas que demostraran que dos columnas contienen exactamente la misma información.
+
+La correlación más elevada aparece entre `Total_Phenols` y `Flavanoids`, pero esta asociación no es suficiente para concluir que una de ellas carece de utilidad. También se identificaron relaciones fuertes entre `Flavanoids` y `OD280`, así como entre `Total_Phenols` y `OD280`. Estas asociaciones muestran que existe un grupo de características químicas relacionadas, pero cada variable puede conservar un aporte particular para diferenciar perfiles de vino.
+
+Además, las etapas posteriores aplicarán estandarización y análisis de componentes principales. El PCA permitirá examinar el aporte conjunto de las variables correlacionadas y resumir parte de la información compartida sin eliminar prematuramente características químicas potencialmente importantes.
+
+<div class="hallazgo">
+Se conservarán las 13 variables para la preparación de los datos, la estandarización, el PCA y el modelado. Esta decisión podrá revisarse posteriormente si el análisis multivariado demuestra que alguna característica presenta un aporte extremadamente bajo o información prácticamente repetida.
+</div>
 
 
 # EDA - Análisis Exploratorio de Datos
@@ -602,16 +740,552 @@ Con esto le doy respuesta a varias de las preguntas que nos planteamos como grup
 
 ## Análisis bivariado
 
-### Relaciones entre variables
+### Objetivo del análisis bivariado
 
-### Gráficos de dispersión
+El análisis bivariado estudia la relación entre pares de variables. En este proyecto se utiliza para identificar características químicas que cambian conjuntamente, relaciones positivas o negativas, asociaciones débiles y posible información redundante.
+
+Este análisis es importante para el clustering porque permite conocer si varias variables podrían estar aportando información semejante y facilita la interpretación de los perfiles químicos presentes antes de aplicar el modelo.
 
 ### Correlaciones
 
+Debido a que todas las variables son numéricas, se calculó la correlación de Pearson. Este coeficiente toma valores entre -1 y 1:
+
+- Un valor cercano a 1 representa una relación lineal positiva fuerte.
+- Un valor cercano a -1 representa una relación lineal negativa fuerte.
+- Un valor cercano a 0 representa una relación lineal débil o inexistente.
+- La correlación no implica causalidad.
+
+```{r matriz-correlacion-carlos}
+# Calcular la matriz de correlación de Pearson
+matriz_correlacion <- cor(
+  wine,
+  method = "pearson",
+  use = "complete.obs"
+)
+
+# Mostrar la matriz redondeada
+knitr::kable(
+  round(matriz_correlacion, 2),
+  caption = "Matriz de correlación de las características químicas",
+  align = rep("c", ncol(matriz_correlacion))
+)
+```
+
+La tabla permite observar la dirección y la intensidad de las relaciones lineales entre todas las características químicas. Sin embargo, debido a la cantidad de valores, también se genera una representación gráfica para facilitar su interpretación.
+
+```{r grafico-correlacion-carlos, fig.width=11, fig.height=9, fig.cap="Mapa de correlaciones entre las características químicas"}
+# Guardar los márgenes gráficos originales
+margenes_originales <- par("mar")
+
+# Ajustar los márgenes para mostrar los nombres de las variables
+par(mar = c(10, 10, 4, 2))
+
+# Cantidad de variables
+cantidad_variables <- ncol(matriz_correlacion)
+
+# Crear una escala de colores
+# Rojo: correlación negativa
+# Blanco: correlación cercana a cero
+# Azul: correlación positiva
+colores_correlacion <- colorRampPalette(
+  c("#b91c1c", "#f8fafc", "#1d4ed8")
+)(200)
+
+# Preparar la matriz para que aparezca en el orden correcto
+matriz_grafico <- t(
+  matriz_correlacion[
+    cantidad_variables:1,
+  ]
+)
+
+# Dibujar el mapa de correlaciones
+image(
+  x = seq_len(cantidad_variables),
+  y = seq_len(cantidad_variables),
+  z = matriz_grafico,
+  col = colores_correlacion,
+  zlim = c(-1, 1),
+  axes = FALSE,
+  xlab = "",
+  ylab = "",
+  main = "Mapa de correlaciones"
+)
+
+# Agregar nombres en el eje horizontal
+axis(
+  side = 1,
+  at = seq_len(cantidad_variables),
+  labels = colnames(matriz_correlacion),
+  las = 2,
+  cex.axis = 0.75
+)
+
+# Agregar nombres en el eje vertical
+axis(
+  side = 2,
+  at = seq_len(cantidad_variables),
+  labels = rev(rownames(matriz_correlacion)),
+  las = 2,
+  cex.axis = 0.75
+)
+
+# Agregar los valores de correlación dentro de las casillas
+for (columna in seq_len(cantidad_variables)) {
+
+  for (fila in seq_len(cantidad_variables)) {
+
+    valor_correlacion <- matriz_correlacion[
+      cantidad_variables + 1 - fila,
+      columna
+    ]
+
+    # Usar texto blanco en casillas oscuras
+    color_numero <- ifelse(
+      abs(valor_correlacion) >= 0.60,
+      "white",
+      "#1f2937"
+    )
+
+    text(
+      x = columna,
+      y = fila,
+      labels = sprintf("%.2f", valor_correlacion),
+      col = color_numero,
+      cex = 0.63,
+      font = 2
+    )
+  }
+}
+
+# Dibujar el borde del gráfico
+box()
+
+# Restaurar los márgenes originales
+par(mar = margenes_originales)
+```
+<div class="analisis">
+El mapa permite observar simultáneamente la dirección, la intensidad y el valor de las correlaciones. Los tonos azules representan relaciones positivas, los tonos rojos representan relaciones negativas y los colores claros indican correlaciones cercanas a cero. La diagonal presenta valores de 1.00 porque cada variable mantiene una correlación perfecta consigo misma.
+</div>
+
+### Relaciones más fuertes
+
+Para facilitar la interpretación, se transformó la matriz en una tabla de pares y se ordenaron las relaciones según el valor absoluto de su correlación.
+
+```{r relaciones-fuertes-carlos}
+# Obtener las posiciones de la parte superior de la matriz
+posiciones_pares <- which(
+  upper.tri(matriz_correlacion),
+  arr.ind = TRUE
+)
+
+# Crear tabla con todos los pares
+tabla_correlaciones <- data.frame(
+  Variable_1 = rownames(matriz_correlacion)[posiciones_pares[, 1]],
+  Variable_2 = colnames(matriz_correlacion)[posiciones_pares[, 2]],
+  Correlacion = matriz_correlacion[posiciones_pares]
+)
+
+# Calcular la correlación absoluta
+tabla_correlaciones$Correlacion_Absoluta <- abs(
+  tabla_correlaciones$Correlacion
+)
+
+# Ordenar desde la correlación más fuerte
+tabla_correlaciones <- tabla_correlaciones[
+  order(
+    tabla_correlaciones$Correlacion_Absoluta,
+    decreasing = TRUE
+  ),
+]
+
+# Seleccionar las diez relaciones más fuertes
+relaciones_principales <- head(tabla_correlaciones, 10)
+
+# Clasificar la dirección
+relaciones_principales$Direccion <- ifelse(
+  relaciones_principales$Correlacion > 0,
+  "Positiva",
+  "Negativa"
+)
+
+# Redondear para presentar los resultados
+relaciones_principales$Correlacion <- round(
+  relaciones_principales$Correlacion,
+  3
+)
+
+# Mostrar columnas relevantes
+knitr::kable(
+  relaciones_principales[
+    ,
+    c("Variable_1", "Variable_2", "Correlacion", "Direccion")
+  ],
+  caption = "Diez relaciones lineales más fuertes",
+  align = c("l", "l", "c", "c")
+)
+```
+
+<div class="hallazgo">
+La correlación positiva más fuerte se observa entre Total_Phenols y Flavanoids. También destacan las relaciones de Flavanoids con OD280, Total_Phenols con OD280, Flavanoids con Proanthocyanins y Alcohol con Proline.
+</div>
+
+Los resultados muestran que varias características relacionadas con los compuestos fenólicos presentan comportamientos semejantes. Esto indica que ciertas muestras de vino pueden compartir perfiles químicos donde los fenoles totales, los flavonoides y OD280 aumentan de manera conjunta.
+
+### Gráficos de dispersión
+
+Los gráficos de dispersión permiten verificar visualmente las relaciones encontradas mediante la correlación. Cada punto representa una muestra de vino y la línea superpuesta representa la tendencia lineal general entre las dos variables.
+
+```{r dispersion-fenoles-flavanoides-carlos, fig.width=8, fig.height=6, fig.cap="Relación entre Total_Phenols y Flavanoids"}
+plot(
+  wine$Total_Phenols,
+  wine$Flavanoids,
+  pch = 19,
+  col = rgb(37, 99, 235, 150, maxColorValue = 255),
+  xlab = "Total de fenoles",
+  ylab = "Flavonoides",
+  main = "Total_Phenols y Flavanoids"
+)
+
+abline(
+  lm(Flavanoids ~ Total_Phenols, data = wine),
+  col = "#dc2626",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-fenoles-flavanoides-carlos}
+cor_fenoles_flavanoides <- cor(
+  wine$Total_Phenols,
+  wine$Flavanoids
+)
+
+cat(
+  "Correlación entre Total_Phenols y Flavanoids:",
+  round(cor_fenoles_flavanoides, 3)
+)
+```
+
+<div class="analisis">
+La nube de puntos presenta una dirección ascendente clara. Esto indica que las muestras con valores altos de Total_Phenols tienden también a presentar valores altos de Flavanoids. El resultado coincide con la correlación positiva muy fuerte encontrada entre ambas variables.
+</div>
+
+```{r dispersion-flavanoides-od280-carlos, fig.width=8, fig.height=6, fig.cap="Relación entre Flavanoids y OD280"}
+plot(
+  wine$Flavanoids,
+  wine$OD280,
+  pch = 19,
+  col = rgb(22, 163, 74, 150, maxColorValue = 255),
+  xlab = "Flavonoides",
+  ylab = "OD280",
+  main = "Flavanoids y OD280"
+)
+
+abline(
+  lm(OD280 ~ Flavanoids, data = wine),
+  col = "#dc2626",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-flavanoides-od280-carlos}
+cor_flavanoides_od280 <- cor(
+  wine$Flavanoids,
+  wine$OD280
+)
+
+cat(
+  "Correlación entre Flavanoids y OD280:",
+  round(cor_flavanoides_od280, 3)
+)
+```
+
+<div class="analisis">
+La relación entre Flavanoids y OD280 también es positiva y fuerte. Las muestras con mayores concentraciones de flavonoides tienden a presentar valores elevados de OD280, aunque existe más dispersión que en la relación entre Total_Phenols y Flavanoids.
+</div>
+
+```{r dispersion-alcohol-proline-carlos, fig.width=8, fig.height=6, fig.cap="Relación entre Alcohol y Proline"}
+plot(
+  wine$Alcohol,
+  wine$Proline,
+  pch = 19,
+  col = rgb(147, 51, 234, 150, maxColorValue = 255),
+  xlab = "Alcohol",
+  ylab = "Proline",
+  main = "Alcohol y Proline"
+)
+
+abline(
+  lm(Proline ~ Alcohol, data = wine),
+  col = "#dc2626",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-alcohol-proline-carlos}
+cor_alcohol_proline <- cor(
+  wine$Alcohol,
+  wine$Proline
+)
+
+cat(
+  "Correlación entre Alcohol y Proline:",
+  round(cor_alcohol_proline, 3)
+)
+```
+
+<div class="analisis">
+Alcohol y Proline presentan una relación positiva moderadamente fuerte. Aunque existe dispersión entre las observaciones, se aprecia una tendencia donde las muestras con concentraciones mayores de alcohol también tienden a presentar valores mayores de Proline.
+</div>
+
+### Relaciones negativas
+
+Una correlación negativa indica que, en términos generales, una variable tiende a disminuir cuando la otra aumenta.
+
+```{r relaciones-negativas-carlos}
+# Seleccionar únicamente correlaciones negativas
+relaciones_negativas <- tabla_correlaciones[
+  tabla_correlaciones$Correlacion < 0,
+]
+
+# Ordenar según la intensidad absoluta
+relaciones_negativas <- relaciones_negativas[
+  order(
+    relaciones_negativas$Correlacion_Absoluta,
+    decreasing = TRUE
+  ),
+]
+
+# Seleccionar las cinco relaciones negativas más fuertes
+principales_negativas <- head(relaciones_negativas, 5)
+
+principales_negativas$Correlacion <- round(
+  principales_negativas$Correlacion,
+  3
+)
+
+knitr::kable(
+  principales_negativas[
+    ,
+    c("Variable_1", "Variable_2", "Correlacion")
+  ],
+  caption = "Cinco relaciones negativas más fuertes",
+  align = c("l", "l", "c")
+)
+```
+
+```{r dispersion-malic-hue-carlos, fig.width=8, fig.height=6, fig.cap="Relación entre Malic_Acid y Hue"}
+plot(
+  wine$Malic_Acid,
+  wine$Hue,
+  pch = 19,
+  col = rgb(249, 115, 22, 150, maxColorValue = 255),
+  xlab = "Ácido málico",
+  ylab = "Hue",
+  main = "Malic_Acid y Hue"
+)
+
+abline(
+  lm(Hue ~ Malic_Acid, data = wine),
+  col = "#2563eb",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-malic-hue-carlos}
+cor_malic_hue <- cor(
+  wine$Malic_Acid,
+  wine$Hue
+)
+
+cat(
+  "Correlación entre Malic_Acid y Hue:",
+  round(cor_malic_hue, 3)
+)
+```
+
+<div class="analisis">
+Malic_Acid y Hue presentan una relación negativa moderada. Esto significa que las muestras con valores altos de ácido málico tienden, en general, a presentar valores menores de Hue. La dispersión observada indica que la relación no es perfecta y que Hue también puede estar asociado con otras características.
+</div>
+
+```{r dispersion-color-hue-carlos, fig.width=8, fig.height=6, fig.cap="Relación entre Color_Intensity y Hue"}
+plot(
+  wine$Color_Intensity,
+  wine$Hue,
+  pch = 19,
+  col = rgb(220, 38, 38, 150, maxColorValue = 255),
+  xlab = "Intensidad del color",
+  ylab = "Hue",
+  main = "Color_Intensity y Hue"
+)
+
+abline(
+  lm(Hue ~ Color_Intensity, data = wine),
+  col = "#2563eb",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-color-hue-carlos}
+cor_color_hue <- cor(
+  wine$Color_Intensity,
+  wine$Hue
+)
+
+cat(
+  "Correlación entre Color_Intensity y Hue:",
+  round(cor_color_hue, 3)
+)
+```
+
+<div class="analisis">
+Color_Intensity y Hue presentan una asociación negativa moderada. Las muestras con mayor intensidad del color tienden a presentar valores menores de Hue. Esta relación puede aportar información para diferenciar perfiles de vino, ya que ambas variables muestran un comportamiento lineal inverso.
+</div>
+
+### Relaciones débiles
+
+Una correlación cercana a cero indica que no existe una relación lineal clara. Sin embargo, esto no significa que las variables sean inútiles para clustering, porque podrían contribuir de manera individual o mantener relaciones no lineales con otras características.
+
+```{r relaciones-debiles-carlos}
+# Ordenar las relaciones desde la correlación absoluta más baja
+relaciones_debiles <- tabla_correlaciones[
+  order(tabla_correlaciones$Correlacion_Absoluta),
+]
+
+# Seleccionar las cinco relaciones más débiles
+relaciones_mas_debiles <- head(relaciones_debiles, 5)
+
+relaciones_mas_debiles$Correlacion <- round(
+  relaciones_mas_debiles$Correlacion,
+  3
+)
+
+knitr::kable(
+  relaciones_mas_debiles[
+    ,
+    c("Variable_1", "Variable_2", "Correlacion")
+  ],
+  caption = "Cinco relaciones lineales más débiles",
+  align = c("l", "l", "c")
+)
+```
+
+```{r dispersion-ash-od280-carlos, fig.width=8, fig.height=6, fig.cap="Ejemplo de relación lineal débil entre Ash y OD280"}
+plot(
+  wine$Ash,
+  wine$OD280,
+  pch = 19,
+  col = rgb(107, 114, 128, 150, maxColorValue = 255),
+  xlab = "Ash",
+  ylab = "OD280",
+  main = "Ash y OD280"
+)
+
+abline(
+  lm(OD280 ~ Ash, data = wine),
+  col = "#dc2626",
+  lwd = 2
+)
+
+grid()
+```
+
+```{r correlacion-ash-od280-carlos}
+cor_ash_od280 <- cor(
+  wine$Ash,
+  wine$OD280
+)
+
+cat(
+  "Correlación entre Ash y OD280:",
+  round(cor_ash_od280, 3)
+)
+```
+
+<div class="analisis">
+La relación entre Ash y OD280 es prácticamente nula. La nube de puntos no presenta una dirección ascendente o descendente definida. Esto indica que conocer el valor de Ash no permite anticipar linealmente el comportamiento de OD280.
+</div>
+
+<div class="advertencia">
+Una correlación débil no constituye una razón suficiente para eliminar una variable. Una característica puede tener poca relación lineal con otra y aun así aportar información importante para establecer distancias y diferenciar los futuros clusters.
+</div>
+
 ### Variables redundantes
+
+El análisis identificó un grupo de variables con asociaciones importantes:
+
+- `Total_Phenols`
+- `Flavanoids`
+- `OD280`
+- `Proanthocyanins`
+
+La relación más elevada ocurre entre `Total_Phenols` y `Flavanoids`. Sin embargo, no se encontró ninguna correlación perfecta o prácticamente igual a 1 que demuestre que dos variables contienen exactamente la misma información.
+
+```{r resumen-redundancia-carlos}
+# Identificar relaciones con correlación absoluta igual o superior a 0.80
+posible_redundancia <- tabla_correlaciones[
+  tabla_correlaciones$Correlacion_Absoluta >= 0.80,
+  c(
+    "Variable_1",
+    "Variable_2",
+    "Correlacion",
+    "Correlacion_Absoluta"
+  )
+]
+
+posible_redundancia$Correlacion <- round(
+  posible_redundancia$Correlacion,
+  3
+)
+
+posible_redundancia$Correlacion_Absoluta <- round(
+  posible_redundancia$Correlacion_Absoluta,
+  3
+)
+
+knitr::kable(
+  posible_redundancia,
+  caption = "Pares que requieren revisión por posible redundancia",
+  align = c("l", "l", "c", "c")
+)
+```
+
+<div class="hallazgo">
+Existe información compartida entre Total_Phenols y Flavanoids, pero no se considera suficiente para eliminar alguna de estas variables. Se recomienda conservarlas y permitir que el PCA evalúe posteriormente su aporte conjunto.
+</div>
 
 ### Hallazgos del análisis bivariado
 
+El análisis bivariado permitió identificar los siguientes hallazgos:
+
+1. La relación lineal más fuerte se presenta entre `Total_Phenols` y `Flavanoids`, con una correlación positiva aproximada de 0.865.
+
+2. `Flavanoids` también presenta una relación positiva fuerte con `OD280`, mientras que `Total_Phenols` mantiene una asociación importante con esa misma variable.
+
+3. `Alcohol` y `Proline` presentan una relación positiva moderadamente fuerte, lo que sugiere un comportamiento conjunto que puede contribuir a diferenciar perfiles de vino.
+
+4. Entre las relaciones negativas destacan `Malic_Acid` con `Hue`, `Flavanoids` con `Nonflavanoid_Phenols` y `Color_Intensity` con `Hue`.
+
+5. También existen pares con correlación prácticamente nula, como `Ash` y `OD280`. Esto demuestra que no todas las características presentan relaciones lineales claras.
+
+6. No se encontraron correlaciones perfectas que justifiquen eliminar automáticamente una variable.
+
+7. Las relaciones encontradas indican que algunas características aportan información compartida, especialmente las relacionadas con los compuestos fenólicos. Sin embargo, cada variable puede conservar información útil para la identificación de perfiles químicos.
+
+8. Se propone conservar las 13 variables y permitir que las siguientes etapas, especialmente la estandarización y el PCA, evalúen su comportamiento conjunto.
+
+<div class="hallazgo">
+El EDA bivariado muestra que existen relaciones químicas suficientemente claras para apoyar la búsqueda de perfiles diferentes entre los vinos. Al mismo tiempo, no existe evidencia suficiente para eliminar variables antes de aplicar el análisis multivariado.
+</div>
 
 ## Análisis multivariado
 
