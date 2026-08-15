@@ -398,7 +398,7 @@ escalas
 
 Esta comparación permite identificar si existen variables con escalas muy diferentes. Esto será importante posteriormente porque los métodos de clustering basados en distancias pueden verse afectados por variables con valores numéricos mucho mayores que otras.
 
-# 9 Hallazgos del análisis preexploratorio
+# Hallazgos del análisis preexploratorio
 
 El análisis preexploratorio permitió conocer el estado inicial del dataset y detectar varios aspectos importantes antes de comenzar el EDA. El conjunto contiene **`r nrow(wine)` observaciones y `r ncol(wine)` variables**, y `r if(all(sapply(wine, is.numeric))) "todas las variables son numéricas" else "no todas las variables son numéricas"`, por lo que pueden utilizarse posteriormente en análisis estadísticos y técnicas de clustering.
 
@@ -1290,39 +1290,1078 @@ El EDA bivariado muestra que existen relaciones químicas suficientemente claras
 ## Análisis multivariado
 
 ### Matriz de correlación
+```{r correlacion-multivariada-base}
+# Función para representar una matriz de correlaciones sin paquetes adicionales
+correlaciones <- function(datos, columnas = names(datos),
+                          cor_method = "spearman", only_hm = FALSE) {
+  if (!only_hm) {
+    datos_seleccionados <- datos[, columnas, drop = FALSE]
+    datos_seleccionados[] <- lapply(
+      datos_seleccionados,
+      function(x) if (is.factor(x) || is.logical(x)) as.numeric(x) else x
+    )
+    matriz <- cor(datos_seleccionados, method = cor_method,
+                  use = "complete.obs")
+  } else {
+    matriz <- as.matrix(datos)
+  }
+
+  cantidad <- ncol(matriz)
+  colores <- colorRampPalette(c("#dc2626", "white", "#2563eb"))(100)
+  margenes_originales <- par(no.readonly = TRUE)
+  on.exit(par(margenes_originales))
+  par(mar = c(9, 9, 4, 2))
+
+  image(
+    x = seq_len(cantidad),
+    y = seq_len(cantidad),
+    z = t(matriz[, cantidad:1, drop = FALSE]),
+    col = colores,
+    zlim = c(-1, 1),
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    main = paste("Mapa de calor de correlaciones -", cor_method)
+  )
+  axis(1, at = seq_len(cantidad), labels = colnames(matriz),
+       las = 2, cex.axis = 0.7)
+  axis(2, at = seq_len(cantidad), labels = rev(rownames(matriz)),
+       las = 2, cex.axis = 0.7)
+
+  for (fila in seq_len(cantidad)) {
+    for (columna in seq_len(cantidad)) {
+      valor <- matriz[cantidad - fila + 1, columna]
+      text(columna, fila, labels = sprintf("%.2f", valor), cex = 0.55)
+    }
+  }
+  box()
+  invisible(matriz)
+}
+```
+
+```{r mapa-correlacion-spearman-multivariado, fig.width=11, fig.height=9}
+correlaciones(wine, cor_method = "spearman")
+```
+
+Para contrastar este resultado con el análisis bivariado, se comparan las matrices
+de Pearson y Spearman. Pearson resume relaciones lineales, mientras que Spearman
+permite comprobar si las asociaciones se mantienen al trabajar con rangos y es menos
+sensible a observaciones extremas.
+
+```{r contraste-correlaciones-multivariado}
+matriz_pearson_multi <- cor(wine, method = "pearson", use = "complete.obs")
+matriz_spearman_multi <- cor(wine, method = "spearman", use = "complete.obs")
+
+posiciones_cor_multi <- which(
+  upper.tri(matriz_pearson_multi),
+  arr.ind = TRUE
+)
+
+tabla_contraste_cor_multi <- data.frame(
+  Variable_1 = rownames(matriz_pearson_multi)[posiciones_cor_multi[, 1]],
+  Variable_2 = colnames(matriz_pearson_multi)[posiciones_cor_multi[, 2]],
+  Pearson = matriz_pearson_multi[posiciones_cor_multi],
+  Spearman = matriz_spearman_multi[posiciones_cor_multi]
+)
+tabla_contraste_cor_multi$Diferencia_Absoluta <- abs(
+  tabla_contraste_cor_multi$Pearson - tabla_contraste_cor_multi$Spearman
+)
+tabla_contraste_cor_multi <- tabla_contraste_cor_multi[
+  order(abs(tabla_contraste_cor_multi$Spearman), decreasing = TRUE),
+]
+
+par_spearman_mayor <- tabla_contraste_cor_multi[1, ]
+diferencia_media_cor_multi <- mean(
+  tabla_contraste_cor_multi$Diferencia_Absoluta
+)
+
+tabla_contraste_mostrar <- head(tabla_contraste_cor_multi, 10)
+tabla_contraste_mostrar[, c("Pearson", "Spearman", "Diferencia_Absoluta")] <-
+  round(
+    tabla_contraste_mostrar[, c(
+      "Pearson", "Spearman", "Diferencia_Absoluta"
+    )],
+    3
+  )
+
+knitr::kable(
+  tabla_contraste_mostrar,
+  caption = "Contraste Pearson-Spearman de las asociaciones más intensas",
+  align = c("l", "l", "c", "c", "c")
+)
+```
+
+<div class="analisis">
+La asociación de Spearman más intensa se presenta entre
+**`r par_spearman_mayor$Variable_1`** y **`r par_spearman_mayor$Variable_2`**, con
+un coeficiente de **`r sprintf("%.3f", par_spearman_mayor$Spearman)`**. Para ese
+mismo par, Pearson alcanza **`r sprintf("%.3f", par_spearman_mayor$Pearson)`**.
+La diferencia absoluta media entre ambos métodos es de apenas
+**`r sprintf("%.3f", diferencia_media_cor_multi)`**, por lo que las asociaciones
+generales son coherentes con las encontradas en el análisis bivariado y no dependen
+exclusivamente de observaciones extremas.
+</div>
+
 
 ### Relaciones entre múltiples variables
 
+Para observar relaciones simultáneas se seleccionan las seis variables con mayor
+correlación absoluta media respecto al resto. La selección se calcula directamente
+desde los datos, por lo que no depende de una elección manual de características.
+
+```{r matriz-dispersion-multivariada, fig.width=11, fig.height=11, fig.cap="Matriz de dispersión de las variables con mayor asociación global"}
+# Correlación absoluta media, excluyendo la diagonal principal
+correlacion_absoluta_multi <- abs(matriz_spearman_multi)
+diag(correlacion_absoluta_multi) <- NA
+
+asociacion_media_multi <- rowMeans(
+  correlacion_absoluta_multi,
+  na.rm = TRUE
+)
+
+variables_relacionadas_multi <- names(
+  sort(asociacion_media_multi, decreasing = TRUE)
+)[seq_len(min(6, ncol(wine)))]
+
+# Matriz de dispersión con una tendencia suavizada en cada panel
+pairs(
+  wine[, variables_relacionadas_multi, drop = FALSE],
+  lower.panel = panel.smooth,
+  pch = 19,
+  col = rgb(37, 99, 235, 90, maxColorValue = 255),
+  cex = 0.55,
+  main = "Relaciones entre las variables con mayor asociación global"
+)
+```
+
+```{r tabla-asociacion-multivariada}
+tabla_asociacion_multi <- data.frame(
+  Variable = names(sort(asociacion_media_multi, decreasing = TRUE)),
+  Correlacion_Absoluta_Media = round(
+    sort(asociacion_media_multi, decreasing = TRUE),
+    3
+  ),
+  row.names = NULL
+)
+
+knitr::kable(
+  head(tabla_asociacion_multi, 6),
+  caption = "Variables con mayor correlación absoluta media",
+  align = c("l", "c")
+)
+```
+
+<div class="analisis">
+Las seis variables con mayor asociación global son
+**`r paste(variables_relacionadas_multi, collapse = ", ")`**. La primera es
+**`r tabla_asociacion_multi$Variable[1]`**, cuya correlación absoluta media con las
+demás características es **`r sprintf("%.3f", tabla_asociacion_multi$Correlacion_Absoluta_Media[1])`**.
+La matriz de dispersión permite comprobar que varias características cambian de forma
+conjunta; aun así, una asociación elevada no demuestra redundancia total y coincide
+con la decisión previa de conservar las 13 variables para el PCA.
+</div>
+
 ### Patrones multivariados
+
+Debido a que las variables utilizan escalas diferentes, se crea una copia
+estandarizada exclusivamente para esta exploración. Cada valor representa cuántas
+desviaciones estándar se encuentra una observación por encima o por debajo de la
+media de su variable.
+
+```{r mapa-calor-patrones-multivariados, fig.width=12, fig.height=10, fig.cap="Perfiles químicos estandarizados y ordenados jerárquicamente"}
+# Copia temporal: el objeto original wine no se modifica
+wine_estandarizado_multi <- scale(wine)
+
+# Ordenar observaciones y variables según su semejanza
+distancia_filas_multi <- dist(wine_estandarizado_multi, method = "euclidean")
+distancia_columnas_multi <- dist(t(wine_estandarizado_multi), method = "euclidean")
+jerarquia_filas_multi <- hclust(distancia_filas_multi, method = "ward.D2")
+jerarquia_columnas_multi <- hclust(distancia_columnas_multi, method = "ward.D2")
+
+colores_perfiles_multi <- colorRampPalette(
+  c("#1d4ed8", "white", "#dc2626")
+)(100)
+limite_color_multi <- max(abs(wine_estandarizado_multi))
+quiebres_perfiles_multi <- seq(
+  -limite_color_multi,
+  limite_color_multi,
+  length.out = length(colores_perfiles_multi) + 1
+)
+
+heatmap(
+  wine_estandarizado_multi,
+  Rowv = as.dendrogram(jerarquia_filas_multi),
+  Colv = as.dendrogram(jerarquia_columnas_multi),
+  scale = "none",
+  col = colores_perfiles_multi,
+  breaks = quiebres_perfiles_multi,
+  labRow = NA,
+  margins = c(10, 5),
+  xlab = "Características químicas",
+  ylab = "Muestras ordenadas por similitud",
+  main = "Patrones multivariados estandarizados"
+)
+
+# Agregar la escala de color debajo del rótulo del eje derecho
+par(
+  fig = c(0.84, 0.94, 0.08, 0.34),
+  new = TRUE,
+  mar = c(0.5, 0, 0.5, 3)
+)
+valores_leyenda_multi <- seq(
+  -limite_color_multi,
+  limite_color_multi,
+  length.out = length(colores_perfiles_multi)
+)
+image(
+  x = c(0, 1),
+  y = valores_leyenda_multi,
+  z = matrix(
+    rep(valores_leyenda_multi, each = 2),
+    nrow = 2
+  ),
+  col = colores_perfiles_multi,
+  axes = FALSE,
+  xlab = "",
+  ylab = ""
+)
+axis(
+  4,
+  at = c(-limite_color_multi, 0, limite_color_multi),
+  labels = sprintf(
+    "%.1f",
+    c(-limite_color_multi, 0, limite_color_multi)
+  ),
+  las = 1,
+  cex.axis = 0.8
+)
+mtext("Valor Z", side = 4, line = 2.3, cex = 0.8)
+box()
+```
+
+```{r bloques-variables-multivariados}
+# Formar bloques exploratorios de variables relacionadas
+bloques_variables_multi <- cutree(jerarquia_columnas_multi, k = 3)
+tabla_bloques_multi <- aggregate(
+  names(bloques_variables_multi),
+  by = list(Bloque = bloques_variables_multi),
+  FUN = function(x) paste(x, collapse = ", ")
+)
+names(tabla_bloques_multi)[2] <- "Variables"
+
+knitr::kable(
+  tabla_bloques_multi,
+  caption = "Bloques exploratorios de variables con comportamiento semejante",
+  align = c("c", "l")
+)
+```
+
+<div class="analisis">
+Los colores del mapa muestran valores relativos y no las unidades originales. Las
+franjas de colores semejantes permiten identificar muestras con perfiles químicos
+parecidos. El agrupamiento de columnas forma **`r length(unique(bloques_variables_multi))`**
+bloques exploratorios de variables; este resultado respalda la existencia de
+información compartida que puede resumirse mediante componentes principales, sin
+eliminar anticipadamente ninguna característica.
+</div>
 
 ### Posibles agrupaciones
 
+El orden observado en el mapa de calor se complementa con un dendrograma. Este
+procedimiento utiliza distancia euclidiana y el método de Ward sobre la copia
+estandarizada, de modo que ninguna variable domina el resultado solo por tener una
+escala numérica mayor.
+
+```{r dendrograma-agrupaciones-multivariadas, fig.width=12, fig.height=7, fig.cap="Dendrograma exploratorio de las muestras de vino"}
+plot(
+  jerarquia_filas_multi,
+  labels = FALSE,
+  hang = -1,
+  main = "Posibles agrupaciones de perfiles químicos",
+  xlab = "Muestras de vino",
+  ylab = "Disimilitud"
+)
+grid(nx = NA, ny = NULL, col = "#d1d5db", lty = "dotted")
+```
+
+```{r resumen-agrupamiento-multivariado}
+resumen_agrupamiento_multi <- data.frame(
+  Elemento = c(
+    "Observaciones incluidas",
+    "Variables incluidas",
+    "Transformación",
+    "Distancia",
+    "Método jerárquico"
+  ),
+  Resultado = c(
+    nrow(wine_estandarizado_multi),
+    ncol(wine_estandarizado_multi),
+    "Estandarización Z",
+    "Euclidiana",
+    "Ward.D2"
+  )
+)
+
+knitr::kable(
+  resumen_agrupamiento_multi,
+  caption = "Configuración del agrupamiento exploratorio",
+  align = c("l", "c")
+)
+```
+
+<div class="advertencia">
+El dendrograma incorpora **`r nrow(wine_estandarizado_multi)`** muestras descritas por
+**`r ncol(wine_estandarizado_multi)`** variables. Sus ramas muestran distintos niveles
+de semejanza, pero en esta etapa no se corta el árbol ni se selecciona una cantidad
+definitiva de grupos. Esa decisión se validará posteriormente mediante PCA, el método
+del codo y el coeficiente de silueta.
+</div>
+
 ### Hallazgos del análisis multivariado
+
+```{r resumen-hallazgos-multivariados}
+# Identificar la asociación de Spearman más intensa sin incluir la diagonal
+posiciones_multi <- which(
+  upper.tri(matriz_spearman_multi),
+  arr.ind = TRUE
+)
+valores_multi <- matriz_spearman_multi[posiciones_multi]
+indice_mayor_multi <- which.max(abs(valores_multi))
+
+tabla_hallazgos_multi <- data.frame(
+  Indicador = c(
+    "Relación de Spearman más intensa",
+    "Coeficiente",
+    "Variable con mayor asociación media",
+    "Cantidad de bloques exploratorios de variables",
+    "Señal visual de posibles agrupaciones"
+  ),
+  Resultado = c(
+    paste(
+      rownames(matriz_spearman_multi)[posiciones_multi[indice_mayor_multi, 1]],
+      "y",
+      colnames(matriz_spearman_multi)[posiciones_multi[indice_mayor_multi, 2]]
+    ),
+    sprintf("%.3f", valores_multi[indice_mayor_multi]),
+    names(which.max(asociacion_media_multi)),
+    length(unique(bloques_variables_multi)),
+    "Presente; requiere validación posterior"
+  )
+)
+
+knitr::kable(
+  tabla_hallazgos_multi,
+  caption = "Resumen de los principales hallazgos multivariados",
+  align = c("l", "l")
+)
+```
+
+1. La relación monotónica más intensa ocurre entre
+`r par_spearman_mayor$Variable_1` y `r par_spearman_mayor$Variable_2`, con un valor
+absoluto de `r sprintf("%.3f", abs(par_spearman_mayor$Spearman))`.
+
+2. La variable con mayor asociación absoluta media es
+`r names(which.max(asociacion_media_multi))`, con un promedio de
+`r sprintf("%.3f", max(asociacion_media_multi))`.
+
+3. El mapa de calor estandarizado muestra perfiles con combinaciones diferentes de
+valores altos y bajos, mientras que las variables se organizan en
+`r length(unique(bloques_variables_multi))` bloques exploratorios.
+
+4. El dendrograma presenta ramas separadas entre las `r nrow(wine)` muestras y, por
+tanto, señales preliminares de posibles agrupaciones naturales entre los vinos.
+
+5. La evidencia sigue siendo exploratoria. La cantidad apropiada de clusters deberá
+determinarse en la etapa de modelado mediante criterios cuantitativos.
+
+<div class="hallazgo">
+El análisis conjunto de las **`r ncol(wine)`** variables muestra estructura
+multivariada y diferencias entre perfiles químicos. La semejanza entre Pearson y
+Spearman y la presencia de bloques correlacionados justifican aplicar PCA sobre datos
+estandarizados; posteriormente, codo y silueta deberán confirmar cuántos grupos
+describen mejor las **`r nrow(wine)`** observaciones.
+</div>
 
 
 # Preparación de datos para el modelado
 
 ## Variables finales
 
+El análisis de calidad, la revisión de valores atípicos y el estudio de correlaciones
+no mostraron razones suficientes para descartar características. Por ello, la matriz
+de modelado conserva todas las variables químicas originales.
+
+```{r preparacion-variables-finales}
+variables_finales <- names(wine)
+datos_modelado <- wine[, variables_finales, drop = FALSE]
+
+tabla_variables_finales <- data.frame(
+  Numero = seq_along(variables_finales),
+  Variable = variables_finales,
+  Tipo = vapply(datos_modelado, class, character(1)),
+  Faltantes = colSums(is.na(datos_modelado)),
+  Desviacion_Estandar = round(
+    vapply(datos_modelado, sd, numeric(1)),
+    3
+  ),
+  row.names = NULL
+)
+
+knitr::kable(
+  tabla_variables_finales,
+  caption = "Variables finales utilizadas en la preparación y el PCA",
+  align = c("c", "l", "c", "c", "c")
+)
+```
+
+<div class="analisis">
+La matriz final contiene **`r nrow(datos_modelado)` observaciones** y
+**`r ncol(datos_modelado)` variables**, todas numéricas, con
+**`r sum(is.na(datos_modelado))` valores faltantes** y
+**`r sum(vapply(datos_modelado, sd, numeric(1)) == 0)` variables de varianza cero**.
+Estas condiciones permiten aplicar estandarización y PCA sin eliminar registros ni
+imputar valores.
+</div>
+
 ## Estandarización
 
+La transformación Z resta la media de cada variable y divide el resultado por su
+desviación estándar. Se conserva `wine` sin cambios y se crea un objeto independiente
+para las técnicas basadas en distancias.
+
+```{r estandarizacion-datos-modelado}
+# Crear una matriz estandarizada sin modificar el dataset original
+datos_estandarizados <- scale(
+  datos_modelado,
+  center = TRUE,
+  scale = TRUE
+)
+
+medias_estandarizadas <- colMeans(datos_estandarizados)
+desviaciones_estandarizadas <- apply(
+  datos_estandarizados,
+  2,
+  sd
+)
+
+tabla_verificacion_estandarizacion <- data.frame(
+  Variable = colnames(datos_estandarizados),
+  Media_Original = vapply(datos_modelado, mean, numeric(1)),
+  DE_Original = vapply(datos_modelado, sd, numeric(1)),
+  Media_Estandarizada = medias_estandarizadas,
+  DE_Estandarizada = desviaciones_estandarizadas,
+  row.names = NULL
+)
+
+tabla_verificacion_estandarizacion[, -1] <- round(
+  tabla_verificacion_estandarizacion[, -1],
+  4
+)
+
+knitr::kable(
+  tabla_verificacion_estandarizacion,
+  caption = "Comprobación de la estandarización de las variables",
+  align = c("l", "c", "c", "c", "c")
+)
+```
+
+```{r rangos-justificacion-estandarizacion}
+rangos_originales_modelado <- vapply(
+  datos_modelado,
+  function(x) diff(range(x)),
+  numeric(1)
+)
+
+variable_mayor_rango <- names(which.max(rangos_originales_modelado))
+variable_menor_rango <- names(which.min(rangos_originales_modelado))
+razon_rangos_modelado <- max(rangos_originales_modelado) /
+  min(rangos_originales_modelado)
+max_media_estandarizada <- max(abs(medias_estandarizadas))
+max_desviacion_error <- max(abs(desviaciones_estandarizadas - 1))
+```
+
+<div class="analisis">
+Después de la transformación, la mayor media absoluta es
+**`r format(max_media_estandarizada, scientific = TRUE, digits = 3)`** y la mayor
+diferencia entre una desviación estándar transformada y 1 es
+**`r format(max_desviacion_error, scientific = TRUE, digits = 3)`**. Por lo tanto,
+las **`r ncol(datos_estandarizados)`** variables quedaron correctamente centradas y
+escaladas, mientras que `wine` conserva sus valores y unidades originales.
+</div>
+
 ## Justificación de la estandarización
+
+En los datos originales, **`r variable_mayor_rango`** presenta el rango más amplio
+(**`r sprintf("%.2f", max(rangos_originales_modelado))`**) y
+**`r variable_menor_rango`** el más pequeño
+(**`r sprintf("%.2f", min(rangos_originales_modelado))`**). El primero es
+**`r sprintf("%.1f", razon_rangos_modelado)` veces** mayor que el segundo. Si se
+aplicaran distancias o PCA directamente sobre esas unidades, las variables de mayor
+magnitud podrían dominar el resultado aunque no fueran las más informativas.
+
+<div class="hallazgo">
+La estandarización responde directamente a las diferencias de escala detectadas en
+el análisis preexploratorio. Al expresar todas las características con media 0 y
+desviación estándar 1, el PCA podrá resumir patrones de variabilidad conjunta y el
+modelado posterior podrá comparar perfiles sin favorecer artificialmente a variables
+como **`r variable_mayor_rango`**.
+</div>
 
 
 # Análisis de Componentes Principales - PCA
 
 ## Aplicación de PCA
 
+La función valida que las variables seleccionadas sean numéricas, comprueba la
+calidad de los datos, ejecuta el PCA mediante `prcomp()` y genera las visualizaciones
+necesarias para evaluar la varianza, la contribución de las variables y la proyección
+conjunta de las muestras.
+
+```{r definicion-funcion-pca}
+
+library(factoextra)
+
+aplicar_PCA <- function(datos,
+                        columnas = NULL,
+                        cant_componentes = NULL,
+                        CENTER = TRUE,
+                        Estandarizar = TRUE,
+                        SCREE_PLOT = TRUE,
+                        CORR_Circle = TRUE,
+                        CORR_CIRCLE_COLORS = c("#00AFBB", "#E7B800", "#FC4E07"),
+                        BIPLOT = TRUE,
+                        show_plots = TRUE,
+                        only_plots = FALSE,
+                        return_plots = FALSE) {
+
+# 1. SELECCION DEL MODO DE TRABAJO
+# ------------------------------------------------------------------------------
+# En modo grafico se reutiliza directamente el PCA suministrado. En modo normal
+# se preparan y validan los datos antes de llamar a prcomp().
+  if (!is.logical(only_plots) || length(only_plots) != 1L || is.na(only_plots)) {
+    stop("'only_plots' debe ser TRUE o FALSE.")
+  }
+
+  if (only_plots) {
+    if (!inherits(datos, "prcomp")) {
+      stop("Con 'only_plots = TRUE', 'datos' debe ser un resultado de prcomp().")
+    }
+    pca_resultado <- datos
+  } else {
+
+
+# 2. CARGA Y PREPARACION DE LOS DATOS
+# ------------------------------------------------------------------------------
+    if (!is.data.frame(datos) && !is.matrix(datos)) {
+      stop("'datos' debe ser un data.frame o una matriz.")
+    }
+
+    # Si no se especifican columnas, se consideran todas las disponibles.
+    if (is.null(columnas)) {
+      columnas <- colnames(datos)
+    }
+    if (is.null(columnas) || length(columnas) < 2L) {
+      stop("Seleccione al menos dos columnas para ejecutar el PCA.")
+    }
+    if (!all(columnas %in% colnames(datos))) {
+      faltantes <- setdiff(columnas, colnames(datos))
+      stop("Columnas inexistentes: ", paste(faltantes, collapse = ", "))
+    }
+
+    # drop = FALSE conserva la estructura tabular incluso al seleccionar.
+    datos_num <- datos[, columnas, drop = FALSE]
+    no_numericas <- !vapply(datos_num, is.numeric, logical(1))
+    if (any(no_numericas)) {
+      stop("Las columnas deben ser numericas: ",
+           paste(names(datos_num)[no_numericas], collapse = ", "))
+    }
+    if (anyNA(datos_num) || any(!is.finite(as.matrix(datos_num)))) {
+      stop("Los datos seleccionados no pueden contener NA, NaN o Inf.")
+    }
+    if (nrow(datos_num) < 2L) {
+      stop("Se requieren al menos dos observaciones.")
+    }
+    if (Estandarizar && any(vapply(datos_num, sd, numeric(1)) == 0)) {
+      stop("No se pueden estandarizar columnas con varianza cero.")
+    }
+
+# 3. EJECUCION DEL PCA
+# ------------------------------------------------------------------------------
+    # prcomp() no puede producir mas componentes que la menor dimension de
+    # la matriz de datos. La solicitud se ajusta silenciosamente a ese limite.
+    max_componentes <- min(nrow(datos_num), ncol(datos_num))
+    if (is.null(cant_componentes)) {
+      cant_componentes <- max_componentes
+    }
+    if (length(cant_componentes) != 1L || is.na(cant_componentes) ||
+        cant_componentes < 1 || cant_componentes %% 1 != 0) {
+      stop("'cant_componentes' debe ser un entero positivo.")
+    }
+    cant_componentes <- min(as.integer(cant_componentes), max_componentes)
+
+    # center = TRUE resta la media; scale. = TRUE divide por la desviacion estandar.
+    pca_resultado <- prcomp(datos_num,
+                            center = CENTER,
+                            scale. = Estandarizar,
+                            rank. = cant_componentes)
+  }
+
+  # El objeto conserva desviaciones, rotaciones y coordenadas. Para consultar
+  # la proporcion de varianza explicada se puede usar summary(pca_resultado).
+
+# 4. EVALUACION DE LA VARIANZA EXPLICADA (SCREE PLOT)
+# ------------------------------------------------------------------------------
+  # La lista solo incorpora los graficos activados por sus respectivos flags.
+  graficos <- list()
+
+  if (SCREE_PLOT) {
+    graficos$scree_plot <- fviz_eig(
+      pca_resultado,
+      addlabels = TRUE,
+      ylim = c(0, 100),
+      barfill = "steelblue",
+      barcolor = "white",
+      title = "1. Varianza Explicada por Componente"
+    )
+    if (show_plots) print(graficos$scree_plot)
+  }
+
+# 5. CONTRIBUCION E INTERPRETACION DE LAS VARIABLES
+# ------------------------------------------------------------------------------
+  if (CORR_Circle) {
+    graficos$cor_Circle <- fviz_pca_var(
+      pca_resultado,
+      col.var = "contrib",
+      gradient.cols = CORR_CIRCLE_COLORS,
+      repel = TRUE,
+      title = "2. Circulo de Correlacion - Variables"
+    )
+    if (show_plots) print(graficos$cor_Circle)
+  }
+
+# 6. VISUALIZACION GLOBAL (BIPLOT)
+# ------------------------------------------------------------------------------
+  if (BIPLOT) {
+    if (ncol(pca_resultado$x) < 2L) {
+      stop("El Biplot requiere al menos dos componentes principales.")
+    }
+    graficos$bi_plot <- fviz_pca_biplot(
+      pca_resultado,
+      repel = TRUE,
+      col.var = "#FC4E07",
+      col.ind = "#2E9FDF",
+      title = "3. Biplot Completo (PC1 vs PC2)"
+    )
+    if (show_plots) print(graficos$bi_plot)
+  }
+
+  if (return_plots) {
+    # Estructura cuando se necesitan analisis y visualizaciones.
+    return(list(resultado = pca_resultado, graficos = graficos))
+  } else if (only_plots) {
+    # En modo only_plots el objeto PCA ya pertenece al usuario.
+    return(graficos)
+  } else {
+    # Por default muestra los plots pero solo retorna el analisis.
+    return(pca_resultado)
+  }
+}
+
+
+```
+
+El PCA se calcula una sola vez con las 13 variables finales. La función recibe
+`datos_modelado`, centra cada característica y la divide por su desviación estándar
+antes de obtener los componentes principales y sus gráficos.
+
+```{r aplicacion-pca-vinos}
+salida_pca <- aplicar_PCA(
+  datos = datos_modelado,
+  columnas = variables_finales,
+  cant_componentes = 5,
+  CENTER = TRUE,
+  Estandarizar = TRUE,
+  SCREE_PLOT = TRUE,
+  CORR_Circle = TRUE,
+  BIPLOT = TRUE,
+  show_plots = FALSE,
+  return_plots = TRUE
+)
+
+resultado_pca <- salida_pca$resultado
+graficos_pca <- salida_pca$graficos
+
+autovalores_pca <- resultado_pca$sdev^2
+varianza_porcentaje_pca <- 100 * autovalores_pca / sum(autovalores_pca)
+varianza_acumulada_pca <- cumsum(varianza_porcentaje_pca)
+
+tabla_varianza_pca <- data.frame(
+  Componente = paste0("PC", seq_along(autovalores_pca)),
+  Autovalor = autovalores_pca,
+  Varianza_Porcentaje = varianza_porcentaje_pca,
+  Varianza_Acumulada = varianza_acumulada_pca,
+  row.names = NULL
+)
+
+umbral_varianza_pca <- 80
+cantidad_componentes_pca <- which(
+  varianza_acumulada_pca >= umbral_varianza_pca
+)[1]
+cantidad_componentes_kaiser <- sum(autovalores_pca > 1)
+
+cargas_pca <- resultado_pca$rotation
+contribuciones_pca <- sweep(
+  cargas_pca^2,
+  2,
+  colSums(cargas_pca^2),
+  "/"
+) * 100
+
+scores_pca <- resultado_pca$x
+datos_pca_modelo <- scores_pca[
+  , seq_len(cantidad_componentes_pca),
+  drop = FALSE
+]
+
+resumen_aplicacion_pca <- data.frame(
+  Elemento = c(
+    "Observaciones analizadas",
+    "Variables originales",
+    "Componentes calculados",
+    "Centrado",
+    "Estandarización",
+    "Componentes retenidos para modelado"
+  ),
+  Resultado = c(
+    nrow(resultado_pca$x),
+    nrow(resultado_pca$rotation),
+    ncol(resultado_pca$x),
+    "Sí",
+    "Sí",
+    cantidad_componentes_pca
+  )
+)
+
+knitr::kable(
+  resumen_aplicacion_pca,
+  caption = "Configuración y dimensiones del PCA",
+  align = c("l", "c")
+)
+```
+
+<div class="analisis">
+El PCA procesó **`r nrow(resultado_pca$x)` observaciones** y
+**`r nrow(resultado_pca$rotation)` variables**, generando
+**`r ncol(resultado_pca$x)` componentes ortogonales**. Para el modelado se preparó
+`datos_pca_modelo` con **`r nrow(datos_pca_modelo)` filas** y
+**`r ncol(datos_pca_modelo)` componentes**, sin modificar la matriz original.
+</div>
+
 ## Varianza explicada
+
+La varianza explicada indica qué proporción de la información estandarizada resume
+cada componente. La columna acumulada permite determinar cuántos componentes son
+necesarios para conservar al menos el 80 % de la variabilidad total.
+
+```{r tabla-varianza-explicada-pca}
+tabla_varianza_mostrar <- tabla_varianza_pca
+tabla_varianza_mostrar[, -1] <- round(tabla_varianza_mostrar[, -1], 3)
+
+knitr::kable(
+  tabla_varianza_mostrar,
+  caption = "Varianza explicada por los componentes principales",
+  align = c("c", "c", "c", "c")
+)
+```
+
+```{r grafico-varianza-explicada-pca, fig.width=10, fig.height=6, fig.cap="Porcentaje de varianza explicado por cada componente"}
+posiciones_barras_pca <- barplot(
+  varianza_porcentaje_pca,
+  names.arg = paste0("PC", seq_along(varianza_porcentaje_pca)),
+  col = ifelse(
+    seq_along(varianza_porcentaje_pca) <= cantidad_componentes_pca,
+    "#2563eb",
+    "#cbd5e1"
+  ),
+  border = "white",
+  ylim = c(0, 100),
+  xlab = "Componente principal",
+  ylab = "Varianza explicada (%)",
+  main = "Scree plot y criterio de reducción dimensional",
+  las = 2
+)
+
+# Agregar la varianza acumulada sobre la misma escala porcentual
+lines(
+  posiciones_barras_pca,
+  varianza_acumulada_pca,
+  type = "b",
+  pch = 19,
+  lwd = 2,
+  col = "#dc2626"
+)
+
+# Señalar el umbral y el punto donde se alcanza
+abline(h = umbral_varianza_pca, col = "#15803d", lty = 2, lwd = 2)
+abline(
+  v = posiciones_barras_pca[cantidad_componentes_pca],
+  col = "#7c3aed",
+  lty = 3,
+  lwd = 2
+)
+
+points(
+  posiciones_barras_pca[cantidad_componentes_pca],
+  varianza_acumulada_pca[cantidad_componentes_pca],
+  pch = 21,
+  bg = "#facc15",
+  col = "black",
+  cex = 1.5
+)
+
+text(
+  posiciones_barras_pca[cantidad_componentes_pca],
+  varianza_acumulada_pca[cantidad_componentes_pca] + 6,
+  labels = paste0(
+    "PC", cantidad_componentes_pca, " = ",
+    sprintf("%.2f", varianza_acumulada_pca[cantidad_componentes_pca]), "%"
+  ),
+  cex = 0.85
+)
+
+legend(
+  "right",
+  legend = c(
+    "Varianza individual retenida",
+    "Varianza individual descartada",
+    "Varianza acumulada",
+    paste0("Umbral ", umbral_varianza_pca, "%"),
+    paste0("Corte en PC", cantidad_componentes_pca)
+  ),
+  fill = c("#2563eb", "#cbd5e1", NA, NA, NA),
+  border = c("white", "white", NA, NA, NA),
+  lty = c(NA, NA, 1, 2, 3),
+  lwd = c(NA, NA, 2, 2, 2),
+  col = c(NA, NA, "#dc2626", "#15803d", "#7c3aed"),
+  bty = "n",
+  cex = 0.8
+)
+```
+
+<div class="analisis">
+PC1 explica **`r sprintf("%.2f", varianza_porcentaje_pca[1])` %** de la varianza y
+PC2 explica **`r sprintf("%.2f", varianza_porcentaje_pca[2])` %**. En conjunto,
+ambos representan **`r sprintf("%.2f", varianza_acumulada_pca[2])` %**, por lo que
+el plano PC1–PC2 es útil para visualizar la estructura dominante, pero no resume por
+sí solo toda la diversidad química de los vinos.
+</div>
+
+<div class="hallazgo">
+Se requieren **`r cantidad_componentes_pca` componentes** para superar el umbral del
+`r umbral_varianza_pca` %, alcanzando **`r sprintf("%.2f", varianza_acumulada_pca[cantidad_componentes_pca])` %**.
+El criterio de Kaiser retendría **`r cantidad_componentes_kaiser` componentes**, que
+explican **`r sprintf("%.2f", varianza_acumulada_pca[cantidad_componentes_kaiser])` %**.
+Este criterio conserva únicamente los componentes con autovalor mayor que 1, ya que
+cada uno explica más varianza que una variable estandarizada individual.
+Se adopta el primer criterio porque conserva una representación más amplia de la
+variabilidad antes de aplicar clustering.
+</div>
 
 ## Componentes principales
 
+Las cargas expresan la dirección y la intensidad con que cada variable participa en
+un componente. El signo separa perfiles opuestos dentro del mismo eje; su orientación
+puede invertirse sin cambiar la solución matemática del PCA.
+
+```{r tabla-cargas-componentes-pca}
+cargas_retenidas_pca <- cargas_pca[
+  , seq_len(cantidad_componentes_pca),
+  drop = FALSE
+]
+
+tabla_cargas_pca <- data.frame(
+  Variable = rownames(cargas_retenidas_pca),
+  round(cargas_retenidas_pca, 3),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+knitr::kable(
+  tabla_cargas_pca,
+  caption = "Cargas de las variables en los componentes retenidos",
+  align = c("l", rep("c", cantidad_componentes_pca))
+)
+```
+
+```{r resumen-componentes-pca}
+variables_dominantes_pca <- lapply(
+  seq_len(cantidad_componentes_pca),
+  function(indice_pc) {
+    orden <- order(abs(cargas_pca[, indice_pc]), decreasing = TRUE)
+    rownames(cargas_pca)[orden[seq_len(min(4, nrow(cargas_pca)))]]
+  }
+)
+names(variables_dominantes_pca) <- paste0(
+  "PC",
+  seq_len(cantidad_componentes_pca)
+)
+
+tabla_resumen_componentes_pca <- data.frame(
+  Componente = names(variables_dominantes_pca),
+  Varianza = round(
+    varianza_porcentaje_pca[seq_len(cantidad_componentes_pca)],
+    2
+  ),
+  Variables_Dominantes = vapply(
+    variables_dominantes_pca,
+    paste,
+    collapse = ", ",
+    FUN.VALUE = character(1)
+  ),
+  row.names = NULL
+)
+
+knitr::kable(
+  tabla_resumen_componentes_pca,
+  caption = "Variables dominantes por componente retenido",
+  align = c("c", "c", "l")
+)
+```
+
+<div class="analisis">
+PC1 está definido principalmente por
+**`r paste(variables_dominantes_pca$PC1, collapse = ", ")`**, lo que coincide con
+las asociaciones entre compuestos fenólicos encontradas anteriormente. PC2 destaca
+**`r paste(variables_dominantes_pca$PC2, collapse = ", ")`**, mientras que PC3
+resume sobre todo **`r paste(variables_dominantes_pca$PC3[1:2], collapse = " y ")`**.
+Así, los primeros ejes reúnen dimensiones químicas diferentes y complementarias.
+</div>
+
 ## Variables con mayor aporte
+
+La contribución se obtiene a partir de las cargas al cuadrado y representa el
+porcentaje de construcción de cada eje atribuible a una variable. Dentro de cada
+componente, las contribuciones suman 100 %.
+
+```{r tabla-contribuciones-pca}
+filas_contribucion_pca <- do.call(
+  rbind,
+  lapply(seq_len(cantidad_componentes_pca), function(indice_pc) {
+    orden <- order(contribuciones_pca[, indice_pc], decreasing = TRUE)[1:3]
+    data.frame(
+      Componente = paste0("PC", indice_pc),
+      Variable = rownames(contribuciones_pca)[orden],
+      Contribucion_Porcentaje = round(
+        contribuciones_pca[orden, indice_pc],
+        2
+      ),
+      row.names = NULL
+    )
+  })
+)
+
+suma_contribuciones_pca <- colSums(contribuciones_pca)
+aporte_top3_por_componente_pca <- tapply(
+  filas_contribucion_pca$Contribucion_Porcentaje,
+  filas_contribucion_pca$Componente,
+  sum
+)
+
+knitr::kable(
+  filas_contribucion_pca,
+  caption = "Tres variables con mayor contribución en cada componente retenido",
+  align = c("c", "l", "c")
+)
+```
+
+```{r circulo-correlaciones-pca, fig.width=10, fig.height=8, fig.cap="Círculo de correlaciones y contribución de las variables"}
+print(graficos_pca$cor_Circle)
+```
+
+Los tres primeros componentes acumulan
+**`r sprintf("%.2f", varianza_acumulada_pca[3])` %** de la varianza total y permiten
+contrastar el bloque fenólico de PC1, la dimensión asociada con color y alcohol de PC2
+y la influencia de las características de ceniza en PC3.
+
+<div class="analisis">
+En PC1, **`r filas_contribucion_pca$Variable[filas_contribucion_pca$Componente == "PC1"][1]`**
+aporta **`r sprintf("%.2f", filas_contribucion_pca$Contribucion_Porcentaje[filas_contribucion_pca$Componente == "PC1"][1])` %**;
+en PC2 sobresale **`r filas_contribucion_pca$Variable[filas_contribucion_pca$Componente == "PC2"][1]`**
+con **`r sprintf("%.2f", filas_contribucion_pca$Contribucion_Porcentaje[filas_contribucion_pca$Componente == "PC2"][1])` %**;
+y en PC3 domina **`r filas_contribucion_pca$Variable[filas_contribucion_pca$Componente == "PC3"][1]`**
+con **`r sprintf("%.2f", filas_contribucion_pca$Contribucion_Porcentaje[filas_contribucion_pca$Componente == "PC3"][1])` %**.
+En conjunto, las tres variables principales concentran
+**`r sprintf("%.2f", aporte_top3_por_componente_pca["PC1"])` %** de PC1,
+**`r sprintf("%.2f", aporte_top3_por_componente_pca["PC2"])` %** de PC2 y
+**`r sprintf("%.2f", aporte_top3_por_componente_pca["PC3"])` %** de PC3. Esto
+muestra que PC2 y PC3 están más concentrados en pocas características, mientras que
+la construcción de PC1 se distribuye de forma más amplia entre el bloque fenólico.
+</div>
 
 ## Visualización PCA
 
+El biplot proyecta simultáneamente las muestras y las variables sobre PC1 y PC2. Los
+vectores con direcciones parecidas representan asociaciones positivas; los vectores
+opuestos indican asociaciones negativas y su longitud refleja qué tan bien quedan
+representadas las variables en este plano.
+
+```{r biplot-pca-vinos, fig.width=11, fig.height=8, fig.cap="Biplot de las observaciones y variables en PC1 y PC2"}
+print(graficos_pca$bi_plot)
+```
+
+Las **`r nrow(scores_pca)`** muestras quedan descritas inicialmente por
+**`r nrow(cargas_pca)`** variables y se resumen mediante componentes ortogonales,
+reduciendo la redundancia detectada entre algunas características químicas.
+
+<div class="advertencia">
+PC1, PC2 y PC3 reúnen **`r sprintf("%.2f", varianza_acumulada_pca[3])` %** de la
+varianza. Para evitar una pérdida excesiva de información, `datos_pca_modelo` mantiene
+los primeros **`r ncol(datos_pca_modelo)` componentes**, que conservan
+**`r sprintf("%.2f", varianza_acumulada_pca[ncol(datos_pca_modelo)])` %** de la
+información total.
+</div>
+
+<div class="analisis">
+PC1 y PC2 concentran **`r sprintf("%.2f", varianza_acumulada_pca[2])` %** de la
+variación total. Las variables principales de PC1 son
+**`r paste(variables_dominantes_pca$PC1[1:3], collapse = ", ")`**, en concordancia
+con el bloque correlacionado observado en el EDA. Esta estructura respalda la
+existencia de perfiles químicos distintos, aunque la cantidad de clusters deberá
+determinarse posteriormente mediante criterios cuantitativos.
+</div>
+
 ## Interpretación del PCA
 
+1. La estandarización evitó que **`r variable_mayor_rango`**, cuyo rango original es
+`r sprintf("%.1f", razon_rangos_modelado)` veces el de `r variable_menor_rango`,
+dominara el PCA únicamente por su escala.
+
+2. PC1 explica **`r sprintf("%.2f", varianza_porcentaje_pca[1])` %** y concentra
+principalmente información de **`r paste(variables_dominantes_pca$PC1, collapse = ", ")`**.
+Esto resume el patrón fenólico identificado mediante correlaciones y el mapa de calor.
+
+3. PC2 aporta **`r sprintf("%.2f", varianza_porcentaje_pca[2])` %** adicional y está
+marcado por **`r paste(variables_dominantes_pca$PC2, collapse = ", ")`**, por lo que
+representa una dimensión química distinta de la resumida por PC1.
+
+4. PC3 explica **`r sprintf("%.2f", varianza_porcentaje_pca[3])` %** y sus dos cargas
+absolutas mayores corresponden a **`r paste(variables_dominantes_pca$PC3[1:2], collapse = " y ")`**,
+coherente con una dimensión relacionada con las cenizas del vino.
+
+5. Aunque PC1 y PC2 facilitan la visualización, juntos conservan solo
+**`r sprintf("%.2f", varianza_acumulada_pca[2])` %**. Por esta razón, el modelado
+utilizará los primeros **`r cantidad_componentes_pca` componentes**, que alcanzan
+**`r sprintf("%.2f", varianza_acumulada_pca[cantidad_componentes_pca])` %**.
+
+<div class="hallazgo">
+El PCA confirma y sintetiza los resultados anteriores: existe un bloque fenólico
+fuerte, otra dimensión asociada con color, alcohol y prolina, y una dimensión de
+cenizas. Reducir las **`r ncol(datos_modelado)` variables originales** a
+**`r cantidad_componentes_pca` componentes** conserva al menos el
+**`r umbral_varianza_pca` %** de la variabilidad, elimina la correlación entre las
+entradas del modelo y deja una representación comparable para evaluar el número de
+clusters en la siguiente etapa.
+</div>
 
 # Modelado
 
