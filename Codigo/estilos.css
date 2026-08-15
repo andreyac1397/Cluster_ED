@@ -2,9 +2,25 @@
    EXAMEN FINAL - WINE CLUSTERING
    ========================================================= */
 
-html { scroll-behavior: smooth; }
+/* Control general del tamaño */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 
 body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
   font-size: 16px;
@@ -12,6 +28,26 @@ body {
   color: #1f2937;
   background: #f4f7fb;
 }
+
+.main-container,
+.toc-content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* El scroll horizontal queda dentro del código */
+div.sourceCode,
+pre:not(.sourceCode) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* El scroll horizontal queda dentro de tablas grandes */
+.table-responsive {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 
 /* =========================================================
    CONTENIDO PRINCIPAL
@@ -32,7 +68,6 @@ body {
   padding-left: 30px !important;
   padding-right: 15px !important;
 }
-
 /* =========================================================
    PORTADA
    ========================================================= */
@@ -51,7 +86,7 @@ body {
   max-width: 850px;
   padding: 55px 60px;
   background: linear-gradient(145deg,#fff,#f7f9fc);
-  border: 1px solid #e5e7eb;
+  border: 1px solid #111827;
   border-radius: 24px;
   box-shadow: 0 15px 45px rgba(0,0,0,.10);
 }
@@ -119,8 +154,10 @@ h1 {
 
 h2 {
   margin: 38px 0 18px;
-  padding-left: 12px;
+  padding: 8px 12px;
+  border: 1px solid #111827;
   border-left: 4px solid #2563eb;
+  border-radius: 6px;
   font-size: 25px;
   font-weight: 700;
   color: #1f2937;
@@ -141,49 +178,122 @@ strong { color: #111827; }
    ========================================================= */
 
 #TOC {
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 5px 20px rgba(0,0,0,.06);
+  padding: 18px 16px;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+
+  /* Borde negro más visible */
+  border: 1px solid #111827;
+  border-radius: 16px;
+
+  /* Sombra moderna */
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
+/* Tamaño del menú lateral */
 .tocify {
   width: 300px !important;
   max-width: 300px !important;
   max-height: 88vh;
+
   overflow-y: auto;
   overflow-x: hidden;
+
+  padding-right: 4px;
 }
 
-#TOC ul { padding-left: 15px; }
+/* Espaciado interno */
+#TOC ul {
+  padding-left: 8px;
+  margin-bottom: 0;
+}
 
 #TOC li,
 .tocify-item {
-  margin: 4px 0;
+  margin: 5px 0;
   line-height: 1.35;
   white-space: normal !important;
 }
 
+/* Enlaces */
 #TOC a,
 .tocify-item a {
   display: block;
-  padding: 6px 8px;
+
+  padding: 8px 10px;
+
   color: #374151;
   text-decoration: none;
+
+  font-size: 14px;
   font-weight: 500;
+
   white-space: normal !important;
   overflow-wrap: break-word;
+
+  border-left: 3px solid transparent;
   border-radius: 7px;
-  transition: .2s;
+
+  transition:
+    background-color .2s ease,
+    color .2s ease,
+    border-color .2s ease,
+    transform .2s ease;
 }
 
-#TOC a:hover { color: #2563eb; background: #eef4ff; }
-
-.tocify-item.active {
-  font-weight: 700;
+/* Al pasar el mouse */
+#TOC a:hover,
+.tocify-item a:hover {
+  color: #1d4ed8;
+  background: #eef4ff;
+  border-left-color: #2563eb;
+  transform: translateX(2px);
 }
 
+/* =========================================================
+   SECCIÓN ACTUAL DEL ÍNDICE
+   ========================================================= */
+
+#TOC .tocify-focus,
+#TOC .tocify-item.active {
+  background: #2563eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.20);
+}
+
+#TOC .tocify-focus > a,
+#TOC .tocify-item.active > a {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  border-left: 4px solid #111827 !important;
+}
+
+/* Mantener visible incluso al pasar el mouse */
+#TOC .tocify-focus > a:hover,
+#TOC .tocify-item.active > a:hover {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+/* Scroll interno del menú */
+.tocify::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tocify::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tocify::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 10px;
+}
+
+.tocify::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
 /* =========================================================
    CÓDIGO R
    ========================================================= */
@@ -192,6 +302,7 @@ div.sourceCode {
   margin: 18px 0;
   overflow: hidden;
   background: #111827 !important;
+  border: 1px solid #111827;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,.08);
 }
@@ -244,7 +355,7 @@ pre:not(.sourceCode) {
   overflow-x: auto;
   background: #f8fafc !important;
   color: #1f2937 !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #111827 !important;
   border-radius: 10px;
   font-family: "Cascadia Code","Consolas","Courier New",monospace;
   font-size: 14px;
@@ -351,24 +462,27 @@ img {
 .advertencia {
   margin: 22px 0;
   padding: 18px 22px;
+  border: 1px solid #111827;
   border-radius: 10px;
 }
 
 .analisis {
   background: #f8fafc;
+  border: 1px solid #111827;
   border-left: 5px solid #2563eb;
 }
 
 .hallazgo {
   background: #f0fdf4;
+  border: 1px solid #111827;
   border-left: 5px solid #16a34a;
 }
 
 .advertencia {
   background: #fff7ed;
+  border: 1px solid #111827;
   border-left: 5px solid #f97316;
 }
-
 /* =========================================================
    BOTONES
    ========================================================= */

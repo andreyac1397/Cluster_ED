@@ -21,18 +21,17 @@ knitr::opts_chunk$set(
   message = FALSE
 )
 ```
-
 <div class="portada">
 
 <div class="portada-contenido">
 
 <p class="institucion">Colegio Universitario de Cartago</p>
 
-<p class="carrera">Tecnologías de Información – Big Data BD-142</p>
+<p class="carrera">Big Data – BD-142 Exploración de Datos</p>
 
-<h1 class="titulo-portada">Examen Final</h1>
+<p class="titulo-portada">Examen Final</p>
 
-<h2 class="subtitulo-portada">Análisis Exploratorio de Datos</h2>
+<p class="subtitulo-portada">Análisis Exploratorio de Datos</p>
 
 <div class="datos-portada">
 
@@ -40,25 +39,36 @@ knitr::opts_chunk$set(
 
 <p><strong>Dataset:</strong> Wine Clustering</p>
 
+<p>
+  <strong>Profesor:</strong>
+  <a href="https://www.cucvirtual.ac.cr/user/view.php?id=11192&course=2375"
+     target="_blank"
+     rel="noopener noreferrer">
+    Ronald Cordoba Vega
+  </a>
+</p>
+
 </div>
 
 <div class="integrantes">
 
 <h3>Integrantes</h3>
 
-<p>Carlos Alberto Cambronero Zúñiga</p>
+<p>Bermúdez Rodríguez, Desmond Akin</p>
 
-<p>Desmond Akin Bermúdez Rodríguez</p>
+<p>Calderón Vega, Andrei</p>
 
-<p>Jeremy Ramírez Pérez</p>
+<p>Cambronero Zúñiga, Carlos Alberto</p>
 
-<p>Samiel Jiménez Portuguez</p>
+<p>Jiménez Portuguez, Samiel</p>
 
-<p>Andrei Calderón Vega</p>
+<p>Ramírez Pérez, Jeremy</p>
 
 </div>
 
-<p class="fecha-portada"><strong>Fecha de entrega:</strong> 17 de agosto de 2026</p>
+<p class="fecha-portada">
+  <strong>Fecha de entrega:</strong> 17 de agosto de 2026
+</p>
 
 </div>
 
@@ -76,9 +86,9 @@ Antes de realizar el análisis exploratorio y aplicar un modelo de clustering, e
 
 Realizar un análisis preexploratorio del dataset para conocer su estructura, calidad, estadísticas principales, dispersión y posibles valores atípicos. Los resultados obtenidos servirán posteriormente para plantear preguntas específicas que serán investigadas en el EDA.
 
-# Carga de datos
+## Carga de datos
 
-## Importación del dataset
+### Importación del dataset
 
 ```{r}
 # Ruta del dataset
@@ -99,20 +109,20 @@ wine <- read.csv(
 cat("Dataset cargado correctamente.")
 ```
 
-## Dimensiones del dataset
+### Dimensiones del dataset
 
 ```{r}
 cat("Cantidad de filas:", nrow(wine), "\n")
 cat("Cantidad de columnas:", ncol(wine))
 ```
 
-## Variables del dataset
+### Variables del dataset
 
 ```{r}
 names(wine)
 ```
 
-## Tipos de variables
+### Tipos de variables
 
 ```{r}
 sapply(wine, class)
@@ -127,9 +137,9 @@ cat("Variables numéricas:", cantidad_numericas, "\n")
 cat("Total de variables:", ncol(wine))
 ```
 
-# Calidad inicial de los datos
+## Calidad inicial de los datos
 
-## Valores faltantes
+### Valores faltantes
 
 ```{r}
 faltantes <- sum(is.na(wine))
@@ -137,13 +147,13 @@ faltantes <- sum(is.na(wine))
 cat("Cantidad total de valores faltantes:", faltantes)
 ```
 
-## Valores faltantes por variable
+### Valores faltantes por variable
 
 ```{r}
 colSums(is.na(wine))
 ```
 
-## Registros duplicados
+### Registros duplicados
 
 ```{r}
 duplicados <- sum(duplicated(wine))
@@ -151,7 +161,7 @@ duplicados <- sum(duplicated(wine))
 cat("Cantidad de registros duplicados:", duplicados)
 ```
 
-## Porcentaje de registros duplicados
+### Porcentaje de registros duplicados
 
 ```{r}
 porcentaje_duplicados <- (duplicados / nrow(wine)) * 100
@@ -159,9 +169,9 @@ porcentaje_duplicados <- (duplicados / nrow(wine)) * 100
 cat("Porcentaje de duplicados:", round(porcentaje_duplicados, 2), "%")
 ```
 
-# Estadísticas descriptivas iniciales
+## Estadísticas descriptivas iniciales
 
-## Resumen general del dataset
+### Resumen general del dataset
 
 ```{r}
 summary(wine)
@@ -169,7 +179,7 @@ summary(wine)
 
 El resumen permite observar el mínimo, primer cuartil, mediana, promedio, tercer cuartil y máximo de cada variable.
 
-## Promedios
+### Promedios
 
 ```{r}
 promedios <- colMeans(wine, na.rm = TRUE)
@@ -177,7 +187,7 @@ promedios <- colMeans(wine, na.rm = TRUE)
 round(promedios, 2)
 ```
 
-## Medianas
+### Medianas
 
 ```{r}
 medianas <- sapply(wine, median, na.rm = TRUE)
@@ -185,7 +195,7 @@ medianas <- sapply(wine, median, na.rm = TRUE)
 round(medianas, 2)
 ```
 
-## Desviación estándar
+### Desviación estándar
 
 ```{r}
 desviaciones <- sapply(wine, sd, na.rm = TRUE)
@@ -195,7 +205,7 @@ round(desviaciones, 2)
 
 La desviación estándar permite conocer qué tanto se alejan los datos del promedio de cada variable.
 
-## Rango de las variables
+### Rango de las variables
 
 ```{r}
 rangos <- sapply(wine, function(x) {
@@ -207,9 +217,9 @@ round(rangos, 2)
 
 El rango permite conocer la diferencia entre el valor mínimo y máximo de cada variable.
 
-# Detección numérica de posibles valores atípicos
+## Detección numérica de posibles valores atípicos
 
-## Cantidad de outliers por variable
+### Cantidad de outliers por variable
 
 ```{r}
 # Función sencilla para contar outliers con el método IQR
@@ -234,7 +244,7 @@ outliers <- sapply(wine, contar_outliers)
 outliers
 ```
 
-## Porcentaje de outliers por variable
+### Porcentaje de outliers por variable
 
 ```{r}
 porcentaje_outliers <- (outliers / nrow(wine)) * 100
@@ -244,9 +254,9 @@ round(porcentaje_outliers, 2)
 
 Este resultado permite observar cuáles variables presentan mayor cantidad de posibles valores atípicos.
 
-# Comparación de datos con y sin posibles outliers
+## Comparación de datos con y sin posibles outliers
 
-## Crear una versión temporal sin outliers
+### Crear una versión temporal sin outliers
 
 ```{r}
 # Inicialmente todas las filas se consideran válidas
@@ -279,21 +289,21 @@ cat("Filas con algún posible outlier:",
 
 Esta versión del dataset se utiliza únicamente para comparar el efecto de los posibles valores atípicos. No significa que estos datos serán eliminados definitivamente.
 
-# Comparación de estadísticas
+## Comparación de estadísticas
 
-## Resumen del dataset original
+### Resumen del dataset original
 
 ```{r}
 summary(wine)
 ```
 
-## Resumen sin posibles outliers
+### Resumen sin posibles outliers
 
 ```{r}
 summary(wine_sin_outliers)
 ```
 
-## Comparación de promedios
+### Comparación de promedios
 
 ```{r}
 promedio_original <- colMeans(wine, na.rm = TRUE)
@@ -312,7 +322,7 @@ comparacion_promedios <- data.frame(
 comparacion_promedios
 ```
 
-## Cambio porcentual de los promedios
+### Cambio porcentual de los promedios
 
 ```{r}
 cambio_promedio <- abs(
@@ -330,7 +340,7 @@ comparacion_promedios
 
 El cambio porcentual permite observar cuáles variables modifican más su promedio cuando se excluyen temporalmente los posibles valores atípicos.
 
-## Comparación de medianas
+### Comparación de medianas
 
 ```{r}
 mediana_original <- sapply(
@@ -354,7 +364,7 @@ comparacion_medianas <- data.frame(
 comparacion_medianas
 ```
 
-## Comparación de desviaciones estándar
+### Comparación de desviaciones estándar
 
 ```{r}
 desviacion_original <- sapply(
@@ -378,9 +388,9 @@ comparacion_desviacion <- data.frame(
 comparacion_desviacion
 ```
 
-# Revisión de diferencias de escala
+## Revisión de diferencias de escala
 
-## Valores mínimos, máximos y rango
+### Valores mínimos, máximos y rango
 
 ```{r}
 minimos <- sapply(wine, min, na.rm = TRUE)
@@ -398,7 +408,7 @@ escalas
 
 Esta comparación permite identificar si existen variables con escalas muy diferentes. Esto será importante posteriormente porque los métodos de clustering basados en distancias pueden verse afectados por variables con valores numéricos mucho mayores que otras.
 
-# 9 Hallazgos del análisis preexploratorio
+# Hallazgos preexploratorio
 
 El análisis preexploratorio permitió conocer el estado inicial del dataset y detectar varios aspectos importantes antes de comenzar el EDA. El conjunto contiene **`r nrow(wine)` observaciones y `r ncol(wine)` variables**, y `r if(all(sapply(wine, is.numeric))) "todas las variables son numéricas" else "no todas las variables son numéricas"`, por lo que pueden utilizarse posteriormente en análisis estadísticos y técnicas de clustering.
 
@@ -414,7 +424,7 @@ Las estadísticas también muestran diferencias importantes entre algunas medias
 
 En general, el preexploratorio muestra que **el dataset tiene buena calidad inicial, no requiere limpieza por valores faltantes o duplicados, contiene algunos posibles valores atípicos cuyo impacto parece limitado y presenta importantes diferencias de escala entre las variables**. Estos hallazgos dan una base clara para que el EDA investigue con mayor detalle las distribuciones, relaciones entre variables, posibles patrones y cuáles características químicas podrían ser más importantes para diferenciar grupos de vinos.
 
-10 Preguntas que surgen para el EDA
+# Preguntas que surgen
 
 A partir de los hallazgos obtenidos en el análisis preexploratorio, se plantea una pregunta principal que guiará el desarrollo del EDA y posteriormente el proceso de clustering.
 
@@ -423,17 +433,24 @@ A partir de los hallazgos obtenidos en el análisis preexploratorio, se plantea 
 ¿Es posible identificar grupos de vinos con características químicas similares y determinar cuáles variables contribuyen más a diferenciarlos?
 
 10.2 Preguntas derivadas
+
 ¿Cuáles variables presentan mayor variabilidad entre las muestras de vino y podrían contribuir más a diferenciarlas?
+
 ¿Qué comportamiento presentan las variables que mostraron posibles valores atípicos, especialmente Ash_Alcanity, Magnesium y Color_Intensity?
+
 ¿Los posibles valores atípicos representan casos aislados o forman parte del comportamiento natural de las variables?
+
 ¿Qué variables presentan distribuciones asimétricas, considerando las diferencias observadas entre sus medias y medianas, como ocurre con Proline y Malic_Acid?
+
 ¿Qué relaciones existen entre las diferentes características químicas de los vinos y cuáles variables presentan asociaciones fuertes entre sí?
+
 ¿Las diferencias de escala observadas entre variables como Proline, Magnesium y otras características de menor magnitud hacen necesaria la estandarización antes de aplicar clustering?
+
 ¿Se pueden observar patrones o agrupaciones naturales entre las muestras al analizar conjuntamente las variables químicas?
 
 Estas preguntas permitirán que el EDA se enfoque en investigar los principales aspectos detectados durante el análisis preexploratorio y aporte información útil para seleccionar, preparar e interpretar las variables que posteriormente serán utilizadas en el modelado.
 
-# Descripción de variables y estadísticas exploratorias
+# Variables y estadísticas
 
 ## Descripción del dataset
 
@@ -481,7 +498,7 @@ kable(round(estadisticas, 2),
       col.names = c("Media", "Mediana", "Desv. Estándar", "Q1", "Q3", "Mínimo", "Máximo"))
 ```
 
-# Selección de variables y justificación
+# Selección de variables
 
 ## Objetivo de la selección de variables
 
@@ -630,7 +647,7 @@ Se conservarán las 13 variables para la preparación de los datos, la estandari
 </div>
 
 
-# EDA - Análisis Exploratorio de Datos
+# Análisis Exploratorio (EDA)
 
 ## Análisis univariado
 
@@ -1287,20 +1304,9 @@ El análisis bivariado permitió identificar los siguientes hallazgos:
 El EDA bivariado muestra que existen relaciones químicas suficientemente claras para apoyar la búsqueda de perfiles diferentes entre los vinos. Al mismo tiempo, no existe evidencia suficiente para eliminar variables antes de aplicar el análisis multivariado.
 </div>
 
-## Análisis multivariado
-
-### Matriz de correlación
-
-### Relaciones entre múltiples variables
-
-### Patrones multivariados
-
-### Posibles agrupaciones
-
-### Hallazgos del análisis multivariado
 
 
-# Preparación de datos para el modelado
+# Preparación para el modelado
 ```{r}
 variables_finales <- names(wine)
 
@@ -1334,10 +1340,10 @@ cat("=== JUSTIFICACIÓN DE LA ESTANDARIZACIÓN ===\n\n")
 ```
 
 
-# Análisis de Componentes Principales - PCA
+# (PCA)
 
 
-## Aplicación de PCA
+## Aplicación PCA
 
 ```{r}
 pca_resultado <- prcomp(wine_estandarizado, center = TRUE, scale. = TRUE)
@@ -1482,7 +1488,7 @@ cat("\nSe selecciona k = 3 por consistencia entre ambos métodos.\n")
 ```
 
 
-## Modelo K-Means
+# Modelo K-Means
 
 ```{r}
 k_optimo <- 3
@@ -1518,7 +1524,7 @@ ggplot(pca_datos, aes(x = PC1, y = PC2, color = Cluster)) +geom_point(size = 3, 
 
 
 
-# Evaluación e interpretación del modelo
+# Evaluación del modelo
 
 ## Calidad de los clusters
 ```{r}
