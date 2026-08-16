@@ -537,7 +537,7 @@ Todas las variables presentan valores numéricos y ninguna contiene datos faltan
 
 Para identificar posible información redundante, se revisaron las correlaciones entre las características químicas. Una correlación alta indica que dos variables presentan un comportamiento lineal semejante, pero no significa necesariamente que midan exactamente el mismo fenómeno.
 
-Se utilizó como referencia una correlación absoluta igual o superior a 0.80 para identificar relaciones especialmente fuertes que requieren una revisión más detallada.
+Se utilizó como referencia una correlación absoluta igual o superior a 0.80 para identificar relaciones muy fuertes que requieren una revisión más detallada por posible información redundante.
 
 ```{r evaluacion-redundancia-carlos}
 # Calcular matriz de correlación
@@ -643,9 +643,8 @@ La correlación más elevada aparece entre `Total_Phenols` y `Flavanoids`, pero 
 Además, las etapas posteriores aplicarán estandarización y análisis de componentes principales. El PCA permitirá examinar el aporte conjunto de las variables correlacionadas y resumir parte de la información compartida sin eliminar prematuramente características químicas potencialmente importantes.
 
 <div class="hallazgo">
-Se conservarán las 13 variables para la preparación de los datos, la estandarización, el PCA y el modelado. Esta decisión podrá revisarse posteriormente si el análisis multivariado demuestra que alguna característica presenta un aporte extremadamente bajo o información prácticamente repetida.
+La selección final está compuesta por las 13 variables originales: Alcohol, Malic_Acid, Ash, Ash_Alcanity, Magnesium, Total_Phenols, Flavanoids, Nonflavanoid_Phenols, Proanthocyanins, Color_Intensity, Hue, OD280 y Proline. No se eliminó ninguna variable porque no se encontraron características constantes, problemas de calidad ni correlaciones perfectas que demostraran información completamente repetida. La relación más elevada, observada entre Total_Phenols y Flavanoids, indica información compartida, pero no evidencia suficiente para descartar alguna de las dos variables.
 </div>
-
 
 # Análisis Exploratorio (EDA)
 
@@ -765,12 +764,19 @@ Este análisis es importante para el clustering porque permite conocer si varias
 
 ### Correlaciones
 
-Debido a que todas las variables son numéricas, se calculó la correlación de Pearson. Este coeficiente toma valores entre -1 y 1:
+Debido a que todas las variables son numéricas, se calculó la correlación de Pearson. Este coeficiente toma valores entre -1 y 1. El signo indica la dirección de la relación, mientras que el valor absoluto indica su intensidad.
 
-- Un valor cercano a 1 representa una relación lineal positiva fuerte.
-- Un valor cercano a -1 representa una relación lineal negativa fuerte.
-- Un valor cercano a 0 representa una relación lineal débil o inexistente.
+Para facilitar la interpretación se utilizó el siguiente criterio:
+
+- Correlación absoluta entre 0.00 y 0.29: relación lineal débil.
+- Correlación absoluta entre 0.30 y 0.59: relación lineal moderada.
+- Correlación absoluta entre 0.60 y 0.79: relación lineal fuerte.
+- Correlación absoluta entre 0.80 y 1.00: relación lineal muy fuerte.
+- Un signo positivo indica que ambas variables tienden a cambiar en la misma dirección.
+- Un signo negativo indica que las variables tienden a cambiar en direcciones opuestas.
 - La correlación no implica causalidad.
+
+Estos intervalos se utilizan como una guía descriptiva para organizar el análisis y no como límites universales o absolutos.
 
 ```{r matriz-correlacion-carlos}
 # Calcular la matriz de correlación de Pearson
@@ -1057,7 +1063,7 @@ cat(
 ```
 
 <div class="analisis">
-Alcohol y Proline presentan una relación positiva moderadamente fuerte. Aunque existe dispersión entre las observaciones, se aprecia una tendencia donde las muestras con concentraciones mayores de alcohol también tienden a presentar valores mayores de Proline.
+Alcohol y Proline presentan una relación positiva fuerte. Aunque existe dispersión entre las observaciones, se aprecia una tendencia donde las muestras con concentraciones mayores de alcohol también tienden a presentar valores mayores de Proline.
 </div>
 
 ### Relaciones negativas

@@ -3199,8 +3199,8 @@ indica que dos variables presentan un comportamiento lineal semejante,
 pero no significa necesariamente que midan exactamente el mismo
 fenómeno.</p>
 <p>Se utilizó como referencia una correlación absoluta igual o superior
-a 0.80 para identificar relaciones especialmente fuertes que requieren
-una revisión más detallada.</p>
+a 0.80 para identificar relaciones muy fuertes que requieren una
+revisión más detallada por posible información redundante.</p>
 <pre class="r"><code># Calcular matriz de correlación
 matriz_correlacion &lt;- cor(wine, use = &quot;complete.obs&quot;)
 
@@ -3415,11 +3415,15 @@ de las variables correlacionadas y resumir parte de la información
 compartida sin eliminar prematuramente características químicas
 potencialmente importantes.</p>
 <div class="hallazgo">
-<p>Se conservarán las 13 variables para la preparación de los datos, la
-estandarización, el PCA y el modelado. Esta decisión podrá revisarse
-posteriormente si el análisis multivariado demuestra que alguna
-característica presenta un aporte extremadamente bajo o información
-prácticamente repetida.</p>
+<p>La selección final está compuesta por las 13 variables originales:
+Alcohol, Malic_Acid, Ash, Ash_Alcanity, Magnesium, Total_Phenols,
+Flavanoids, Nonflavanoid_Phenols, Proanthocyanins, Color_Intensity, Hue,
+OD280 y Proline. No se eliminó ninguna variable porque no se encontraron
+características constantes, problemas de calidad ni correlaciones
+perfectas que demostraran información completamente repetida. La
+relación más elevada, observada entre Total_Phenols y Flavanoids, indica
+información compartida, pero no evidencia suficiente para descartar
+alguna de las dos variables.</p>
 </div>
 </div>
 </div>
@@ -3596,16 +3600,26 @@ aplicar el modelo.</p>
 <div id="correlaciones" class="section level3" number="6.2.2">
 <h3><span class="header-section-number">6.2.2</span> Correlaciones</h3>
 <p>Debido a que todas las variables son numéricas, se calculó la
-correlación de Pearson. Este coeficiente toma valores entre -1 y 1:</p>
+correlación de Pearson. Este coeficiente toma valores entre -1 y 1. El
+signo indica la dirección de la relación, mientras que el valor absoluto
+indica su intensidad.</p>
+<p>Para facilitar la interpretación se utilizó el siguiente
+criterio:</p>
 <ul>
-<li>Un valor cercano a 1 representa una relación lineal positiva
+<li>Correlación absoluta entre 0.00 y 0.29: relación lineal débil.</li>
+<li>Correlación absoluta entre 0.30 y 0.59: relación lineal
+moderada.</li>
+<li>Correlación absoluta entre 0.60 y 0.79: relación lineal fuerte.</li>
+<li>Correlación absoluta entre 0.80 y 1.00: relación lineal muy
 fuerte.</li>
-<li>Un valor cercano a -1 representa una relación lineal negativa
-fuerte.</li>
-<li>Un valor cercano a 0 representa una relación lineal débil o
-inexistente.</li>
+<li>Un signo positivo indica que ambas variables tienden a cambiar en la
+misma dirección.</li>
+<li>Un signo negativo indica que las variables tienden a cambiar en
+direcciones opuestas.</li>
 <li>La correlación no implica causalidad.</li>
 </ul>
+<p>Estos intervalos se utilizan como una guía descriptiva para organizar
+el análisis y no como límites universales o absolutos.</p>
 <pre class="r"><code># Calcular la matriz de correlación de Pearson
 matriz_correlacion &lt;- cor(
   wine,
@@ -4245,10 +4259,10 @@ cat(
 )</code></pre>
 <pre><code>## Correlación entre Alcohol y Proline: 0.644</code></pre>
 <div class="analisis">
-<p>Alcohol y Proline presentan una relación positiva moderadamente
-fuerte. Aunque existe dispersión entre las observaciones, se aprecia una
-tendencia donde las muestras con concentraciones mayores de alcohol
-también tienden a presentar valores mayores de Proline.</p>
+<p>Alcohol y Proline presentan una relación positiva fuerte. Aunque
+existe dispersión entre las observaciones, se aprecia una tendencia
+donde las muestras con concentraciones mayores de alcohol también
+tienden a presentar valores mayores de Proline.</p>
 </div>
 </div>
 <div id="relaciones-negativas" class="section level3" number="6.2.5">
