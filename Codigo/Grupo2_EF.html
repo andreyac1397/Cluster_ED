@@ -2757,19 +2757,19 @@ variables</h2>
 <pre class="r"><code>diccionario &lt;- data.frame(
   Variable = names(wine),
   Descripcion = c(
-    &quot;Grado alcohólico del vino&quot;,
-    &quot;Ácido málico&quot;,
-    &quot;Contenido de cenizas&quot;,
-    &quot;Alcalinidad de las cenizas&quot;,
-    &quot;Contenido de magnesio&quot;,
-    &quot;Fenoles totales&quot;,
-    &quot;Flavonoides&quot;,
-    &quot;Fenoles no flavonoides&quot;,
-    &quot;Proantocianinas&quot;,
-    &quot;Intensidad del color&quot;,
-    &quot;Tono del color&quot;,
-    &quot;Absorbancia OD280/OD315 (pureza de proteínas)&quot;,
-    &quot;Prolina (aminoácido)&quot;
+    &quot;Porcentaje de alcohol por volumen. Refleja la cantidad de azúcar que fue fermentada y suele variar según el clima de la región y el proceso de vinificación.&quot;,
+    &quot;Ácido málico, presente naturalmente en la uva. Aporta acidez y sabor &#39;verde&#39; o ácido; niveles altos pueden indicar uvas menos maduras al momento de la cosecha.&quot;,
+    &quot;Contenido mineral que queda tras evaporar el vino (residuo inorgánico). Refleja los minerales absorbidos por la vid desde el suelo.&quot;,
+    &quot;Mide qué tan básicas o ácidas son esas cenizas minerales. Influye en la sensación de frescura y estructura mineral del vino.&quot;,
+    &quot;Cantidad de magnesio, un mineral que la vid absorbe del suelo. Puede relacionarse con la salud de la planta y el terreno de cultivo.&quot;,
+    &quot;Cantidad total de compuestos fenólicos, responsables en gran parte del sabor, aroma y capacidad de envejecimiento del vino.&quot;,
+    &quot;Subgrupo de fenoles asociado directamente con el color, el cuerpo y el sabor amargo/astringente del vino tinto.&quot;,
+    &quot;Fenoles que no son flavonoides. Contribuyen al sabor pero en menor medida que los flavonoides a las características sensoriales principales.&quot;,
+    &quot;Compuestos relacionados con el color y la sensación de astringencia (sequedad en boca) del vino.&quot;,
+    &quot;Qué tan intenso o profundo es el color del vino. Suele estar ligado a la variedad de uva y al tiempo de maceración con la piel.&quot;,
+    &quot;Tonalidad del color (por ejemplo, más rojiza o más amarronada). Puede dar pistas sobre la edad o el proceso de oxidación del vino.&quot;,
+    &quot;Medida de pureza relacionada con las proteínas del vino, usada como indicador indirecto de calidad y estabilidad.&quot;,
+    &quot;Aminoácido presente en la uva. Sus niveles varían mucho entre variedades y pueden ser un buen indicador para diferenciar cultivares.&quot;
   ),
   Tipo = sapply(wine, class)
 )
@@ -2778,9 +2778,9 @@ kable(diccionario, row.names = FALSE,
       col.names = c(&quot;Variable&quot;, &quot;Descripción&quot;, &quot;Tipo&quot;))</code></pre>
 <table>
 <colgroup>
-<col width="28%" />
-<col width="61%" />
-<col width="10%" />
+<col width="11%" />
+<col width="84%" />
+<col width="4%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -2792,67 +2792,89 @@ kable(diccionario, row.names = FALSE,
 <tbody>
 <tr class="odd">
 <td align="left">Alcohol</td>
-<td align="left">Grado alcohólico del vino</td>
+<td align="left">Porcentaje de alcohol por volumen. Refleja la cantidad
+de azúcar que fue fermentada y suele variar según el clima de la región
+y el proceso de vinificación.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="even">
 <td align="left">Malic_Acid</td>
-<td align="left">Ácido málico</td>
+<td align="left">Ácido málico, presente naturalmente en la uva. Aporta
+acidez y sabor ‘verde’ o ácido; niveles altos pueden indicar uvas menos
+maduras al momento de la cosecha.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Ash</td>
-<td align="left">Contenido de cenizas</td>
+<td align="left">Contenido mineral que queda tras evaporar el vino
+(residuo inorgánico). Refleja los minerales absorbidos por la vid desde
+el suelo.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="even">
 <td align="left">Ash_Alcanity</td>
-<td align="left">Alcalinidad de las cenizas</td>
+<td align="left">Mide qué tan básicas o ácidas son esas cenizas
+minerales. Influye en la sensación de frescura y estructura mineral del
+vino.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Magnesium</td>
-<td align="left">Contenido de magnesio</td>
+<td align="left">Cantidad de magnesio, un mineral que la vid absorbe del
+suelo. Puede relacionarse con la salud de la planta y el terreno de
+cultivo.</td>
 <td align="left">integer</td>
 </tr>
 <tr class="even">
 <td align="left">Total_Phenols</td>
-<td align="left">Fenoles totales</td>
+<td align="left">Cantidad total de compuestos fenólicos, responsables en
+gran parte del sabor, aroma y capacidad de envejecimiento del vino.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Flavanoids</td>
-<td align="left">Flavonoides</td>
+<td align="left">Subgrupo de fenoles asociado directamente con el color,
+el cuerpo y el sabor amargo/astringente del vino tinto.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="even">
 <td align="left">Nonflavanoid_Phenols</td>
-<td align="left">Fenoles no flavonoides</td>
+<td align="left">Fenoles que no son flavonoides. Contribuyen al sabor
+pero en menor medida que los flavonoides a las características
+sensoriales principales.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Proanthocyanins</td>
-<td align="left">Proantocianinas</td>
+<td align="left">Compuestos relacionados con el color y la sensación de
+astringencia (sequedad en boca) del vino.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="even">
 <td align="left">Color_Intensity</td>
-<td align="left">Intensidad del color</td>
+<td align="left">Qué tan intenso o profundo es el color del vino. Suele
+estar ligado a la variedad de uva y al tiempo de maceración con la
+piel.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Hue</td>
-<td align="left">Tono del color</td>
+<td align="left">Tonalidad del color (por ejemplo, más rojiza o más
+amarronada). Puede dar pistas sobre la edad o el proceso de oxidación
+del vino.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="even">
 <td align="left">OD280</td>
-<td align="left">Absorbancia OD280/OD315 (pureza de proteínas)</td>
+<td align="left">Medida de pureza relacionada con las proteínas del
+vino, usada como indicador indirecto de calidad y estabilidad.</td>
 <td align="left">numeric</td>
 </tr>
 <tr class="odd">
 <td align="left">Proline</td>
-<td align="left">Prolina (aminoácido)</td>
+<td align="left">Aminoácido presente en la uva. Sus niveles varían mucho
+entre variedades y pueden ser un buen indicador para diferenciar
+cultivares.</td>
 <td align="left">integer</td>
 </tr>
 </tbody>
