@@ -28,11 +28,11 @@ knitr::opts_chunk$set(
 
 <p class="institucion">Colegio Universitario de Cartago</p>
 
-<p class="carrera">Tecnologías de Información – Big Data BD-142</p>
+<p class="carrera">Big Data – BD-142 Exploración de Datos</p>
 
-<h1 class="titulo-portada">Examen Final</h1>
+<p class="titulo-portada">Examen Final</p>
 
-<h2 class="subtitulo-portada">Análisis Exploratorio de Datos</h2>
+<p class="subtitulo-portada">Análisis Exploratorio de Datos</p>
 
 <div class="datos-portada">
 
