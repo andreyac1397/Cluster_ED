@@ -2595,8 +2595,11 @@ Justificación:
    - Los primeros 2 componentes explican aproximadamente el 55.4% de la varianza
    - PC1 está asociado principalmente con compuestos fenólicos
    - PC2 está asociado con características de color y acidez
+   - PC3 esta asociado con los compuestos minerales y fenoles que no son flavonoides
+   - PC4 y PC5 se utilizan como complementos para aportar informacion para el modelado
 
 4. Clustering (K-Means)
+   - Se realiza el modelado sobre 5 componentes principales que, en total, explican aproximadamente el 80% de la variabilidad de las 13 variables originales.
    - Se identificaron 3 grupos naturales de vinos
    - Coeficiente de silueta: 0.3691 (separación ACEPTABLE)
    - Tamaño de clusters: 62, 65 y 51 vinos
