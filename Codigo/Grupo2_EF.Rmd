@@ -414,21 +414,28 @@ Las estadísticas también muestran diferencias importantes entre algunas medias
 
 En general, el preexploratorio muestra que **el dataset tiene buena calidad inicial, no requiere limpieza por valores faltantes o duplicados, contiene algunos posibles valores atípicos cuyo impacto parece limitado y presenta importantes diferencias de escala entre las variables**. Estos hallazgos dan una base clara para que el EDA investigue con mayor detalle las distribuciones, relaciones entre variables, posibles patrones y cuáles características químicas podrían ser más importantes para diferenciar grupos de vinos.
 
-10 Preguntas que surgen para el EDA
+# Preguntas que surgen para el EDA
 
 A partir de los hallazgos obtenidos en el análisis preexploratorio, se plantea una pregunta principal que guiará el desarrollo del EDA y posteriormente el proceso de clustering.
 
-10.1 Pregunta principal
+## Pregunta principal
 
 ¿Es posible identificar grupos de vinos con características químicas similares y determinar cuáles variables contribuyen más a diferenciarlos?
 
-10.2 Preguntas derivadas
+## Preguntas derivadas
+
 ¿Cuáles variables presentan mayor variabilidad entre las muestras de vino y podrían contribuir más a diferenciarlas?
+
 ¿Qué comportamiento presentan las variables que mostraron posibles valores atípicos, especialmente Ash_Alcanity, Magnesium y Color_Intensity?
+
 ¿Los posibles valores atípicos representan casos aislados o forman parte del comportamiento natural de las variables?
+
 ¿Qué variables presentan distribuciones asimétricas, considerando las diferencias observadas entre sus medias y medianas, como ocurre con Proline y Malic_Acid?
+
 ¿Qué relaciones existen entre las diferentes características químicas de los vinos y cuáles variables presentan asociaciones fuertes entre sí?
+
 ¿Las diferencias de escala observadas entre variables como Proline, Magnesium y otras características de menor magnitud hacen necesaria la estandarización antes de aplicar clustering?
+
 ¿Se pueden observar patrones o agrupaciones naturales entre las muestras al analizar conjuntamente las variables químicas?
 
 Estas preguntas permitirán que el EDA se enfoque en investigar los principales aspectos detectados durante el análisis preexploratorio y aporte información útil para seleccionar, preparar e interpretar las variables que posteriormente serán utilizadas en el modelado.
@@ -2554,9 +2561,10 @@ box()
 Respuesta: Se identificaron 3 grupos naturales de vinos.
 
 Justificación:
+
 - El método del codo muestra un quiebre en k=3
-- El método de silueta tiene su valor máximo en k=3 (0.56)
-- El coeficiente de silueta final es 0.54, lo que indica BUENA separación
+- El método de silueta tiene su valor máximo en k=3 (0.369)
+- El coeficiente de silueta final es 0.3691, lo que indica una separación ACEPTABLE
 - Los 3 grupos son interpretables químicamente
 
 ### Pregunta 2: ¿Qué variables distinguen mejor los grupos?
@@ -2573,34 +2581,36 @@ Justificación:
 ## Principales hallazgos
 
 1. Calidad de los datos
- El dataset contiene 178 muestras de vino con 13 variables químicas
- No se encontraron valores faltantes ni registros duplicados
- Todas las variables son numéricas y aptas para análisis estadístico
+   - El dataset contiene 178 muestras de vino con 13 variables químicas
+   - No se encontraron valores faltantes ni registros duplicados
+   - Todas las variables son numéricas y aptas para análisis estadístico
 
 2. Análisis exploratorio
-Se identificaron diferencias importantes de escala entre variables
-Proline y Malic_Acid presentan distribuciones asimétricas
-Se detectaron valores atípicos en 7 variables (dentro de lo esperado)
-Correlación fuerte entre Total_Phenols y Flavanoids (r = 0.865)
+   - Se identificaron diferencias importantes de escala entre variables
+   - Proline y Malic_Acid presentan distribuciones asimétricas
+   - Se detectaron valores atípicos en 7 variables (dentro de lo esperado)
+   - Correlación fuerte entre Total_Phenols y Flavanoids (r = 0.865)
 
 3. Reducción de dimensionalidad (PCA)
-Los primeros 2 componentes explican aproximadamente el 53.5% de la varianza
-PC1 está asociado principalmente con compuestos fenólicos
-PC2 está asociado con características de color y acidez
+   - Los primeros 2 componentes explican aproximadamente el 55.4% de la varianza
+   - PC1 está asociado principalmente con compuestos fenólicos
+   - PC2 está asociado con características de color y acidez
 
 4. Clustering (K-Means)
-Se identificaron 3 grupos naturales de vinos
-Coeficiente de silueta: 0.54 (BUENA separación)
-Tamaño de clusters: 45, 71 y 62 vinos
+   - Se identificaron 3 grupos naturales de vinos
+   - Coeficiente de silueta: 0.3691 (separación ACEPTABLE)
+   - Tamaño de clusters: 62, 65 y 51 vinos
 
 5. Variables discriminantes
-Las 5 variables más importantes para la clasificación son:
-  1. Flavanoids
-  2. OD280
-  3. Proline
-  4. Alcohol
-  5. Color_Intensity
-Estas variables permiten diferenciar los perfiles de vino
+   - Las 5 variables más importantes para la clasificación son:
+
+     1. Flavanoids
+     2. OD280
+     3. Proline
+     4. Alcohol
+     5. Color_Intensity
+
+   - Estas variables permiten diferenciar los perfiles de vino
 
 ## Respuesta a la problemática principal
 
@@ -2608,19 +2618,20 @@ La problemática principal consistía en identificar grupos de vinos con caracte
 
 Resultados obtenidos:
 
-Se logró identificar 3 grupos de vinos con perfiles químicos diferenciados
-La separación entre grupos es BUENA (silueta = 0.54)
-Se identificaron las variables clave para la clasificación: Flavanoids, OD280 y Proline
-Los clusters se interpretan como vinos de ALTA, MEDIA y BAJA calidad
-El modelo permite clasificar automáticamente nuevos vinos
+- Se logró identificar 3 grupos de vinos con perfiles químicos diferenciados
+- La separación entre grupos es ACEPTABLE (silueta = 0.3691)
+- Se identificaron las variables clave para la clasificación: Flavanoids, OD280 y Proline
+- Los clusters se interpretan como vinos de ALTA, MEDIA y BAJA calidad
+- El modelo permite clasificar automáticamente nuevos vinos
 
 ## Conclusión final
-El análisis de clustering mediante K-Means ha permitido identificar 3 grupos naturales de vinos basados en sus características químicas. El modelo presenta una separación buena y permite diferenciar claramente vinos de alta, media y baja calidad.
+El análisis de clustering mediante K-Means ha permitido identificar 3 grupos naturales de vinos basados en sus características químicas. El modelo presenta una separación aceptable y permite diferenciar claramente vinos de alta, media y baja calidad.
 
 Este análisis demuestra que es posible clasificar vinos por su perfil químico utilizando técnicas de aprendizaje no supervisado. Los resultados obtenidos pueden ser de utilidad para:
-Control de calidad en la producción de vinos
-Clasificación automática de nuevos vinos
-Identificación de características deseables en vinos de alta calidad
+
+- Control de calidad en la producción de vinos
+- Clasificación automática de nuevos vinos
+- Identificación de características deseables en vinos de alta calidad
 
 El proyecto cumple con el objetivo planteado inicialmente y proporciona una base sólida para futuros análisis que puedan incorporar más variables, más muestras o diferentes técnicas de modelado.
 
