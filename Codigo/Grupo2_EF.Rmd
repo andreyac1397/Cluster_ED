@@ -15,6 +15,15 @@ output:
 
 ```{r configuracion, include=FALSE}
 library(knitr)
+
+# Garantizar caracteres en español dentro de los gráficos generados por R.
+locale_caracteres <- if (.Platform$OS.type == "windows") {
+  "Spanish_Costa Rica.UTF-8"
+} else {
+  "C.UTF-8"
+}
+suppressWarnings(Sys.setlocale("LC_CTYPE", locale_caracteres))
+
 knitr::opts_chunk$set(
   echo = TRUE,
   warning = FALSE,
@@ -452,7 +461,7 @@ diccionario <- data.frame(
   Descripcion = c(
     "Porcentaje de alcohol por volumen. Refleja la cantidad de azúcar que fue fermentada y suele variar según el clima de la región y el proceso de vinificación.",
     "Ácido málico, presente naturalmente en la uva. Aporta acidez y sabor 'verde' o ácido; niveles altos pueden indicar uvas menos maduras al momento de la cosecha.",
-    "Contenido mineral que queda tras evaporar el vino (residuo inorgánico). Refleja los minerales absorbidos por la vid desde el suelo.",
+    "Residuo mineral que queda después de incinerar una muestra de vino y eliminar sus componentes orgánicos. Refleja los minerales absorbidos por la vid (planta de uva) desde el suelo.",
     "Mide qué tan básicas o ácidas son esas cenizas minerales. Influye en la sensación de frescura y estructura mineral del vino.",
     "Cantidad de magnesio, un mineral que la vid absorbe del suelo. Puede relacionarse con la salud de la planta y el terreno de cultivo.",
     "Cantidad total de compuestos fenólicos, responsables en gran parte del sabor, aroma y capacidad de envejecimiento del vino.",
@@ -461,7 +470,7 @@ diccionario <- data.frame(
     "Compuestos relacionados con el color y la sensación de astringencia (sequedad en boca) del vino.",
     "Qué tan intenso o profundo es el color del vino. Suele estar ligado a la variedad de uva y al tiempo de maceración con la piel.",
     "Tonalidad del color (por ejemplo, más rojiza o más amarronada). Puede dar pistas sobre la edad o el proceso de oxidación del vino.",
-    "Medida de pureza relacionada con las proteínas del vino, usada como indicador indirecto de calidad y estabilidad.",
+    "Relación entre las absorbancias ópticas a 280 y 315 nm de una muestra de vino diluida. Es una medida espectrofotométrica asociada con su composición fenólica.",
     "Aminoácido presente en la uva. Sus niveles varían mucho entre variedades y pueden ser un buen indicador para diferenciar cultivares."
   ),
   Tipo = sapply(wine, class)
@@ -470,6 +479,10 @@ diccionario <- data.frame(
 kable(diccionario, row.names = FALSE,
       col.names = c("Variable", "Descripción", "Tipo"))
 ```
+
+La interpretación espectrofotométrica de `OD280` se apoya en el
+[método de la Organización Internacional de la Viña y el Vino (OIV) para la estimación de fenoles totales](https://www.oiv.int/public/medias/8328/oeno-12-2002fr.pdf),
+que emplea mediciones de absorbancia a 280 nm.
 
 ## Estadísticas descriptivas
 
@@ -653,7 +666,9 @@ for (var in names(wine)) {
        breaks = 15)
 }
 ```
-A partir de las medias y medianas calculadas en la sección anterior, se observan diferencias notables en algunas variables que sugieren distribuciones asimétricas. **Proline** presenta una media de 746.9 y una mediana de 673.5, con una diferencia considerable que indica una distribución sesgada hacia la derecha (cola de valores altos). De forma similar, **Malic_Acid** tiene una media de 2.34 frente a una mediana de 1.87, mostrando también asimetría positiva.
+
+
+A partir de las medias y medianas calculadas en la sección anterior, se observan diferencias notables en algunas variables que sugieren distribuciones asimétricas. Como por ejemplo, **Proline** presenta una media de 746.9 y una mediana de 673.5, con una diferencia considerable que indica una distribución sesgada hacia la derecha (cola de valores altos). De forma similar, **Malic_Acid** tiene una media de 2.34 frente a una mediana de 1.87, mostrando también asimetría positiva. Este comportamiento también se observa en **Magnesium**, cuya media de 99.74 supera su mediana de 98.00, y en **Color_Intensity**, con una media de 5.06 frente a una mediana de 4.69. En ambos casos, la diferencia y la forma de sus distribuciones indican igualmente una cola hacia los valores altos.
 
 En contraste, variables como **Alcohol** y **Ash** muestran medias y medianas muy cercanas entre sí, lo que sugiere distribuciones más simétricas, cercanas a una forma normal.
 
@@ -684,7 +699,7 @@ abline(v = median(wine$Malic_Acid), col = "darkgreen", lwd = 2, lty = 2)
 par(mfrow = c(1, 1))
 ```
 
-Los histogramas de **Proline** y **Malic_Acid** muestran claramente la cola hacia la derecha mencionada anteriormente: la línea roja (media) queda desplazada hacia la derecha respecto a la línea verde punteada (mediana), confirmando la asimetría positiva en ambas variables.
+Los histogramas detallados de **Proline** y **Malic_Acid** muestran claramente la cola hacia la derecha mencionada anteriormente: la línea roja (media) queda desplazada hacia la derecha respecto a la línea verde punteada (mediana), confirmando la asimetría positiva en ambas variables. La revisión general de las distribuciones muestra un patrón semejante en **Magnesium** y **Color_Intensity**, por lo que estas dos variables también deben considerarse al interpretar la asimetría del conjunto.
 
 ### Diagramas de caja
 ```{r}
@@ -739,7 +754,7 @@ Los valores atípicos identificados coinciden con los ya reportados en el análi
 ### Hallazgos del análisis univariado
 
 
-Después de revisar cada variable por separado, lo primero que noto es que la mayoría se comporta de forma bastante simétrica, pero hay dos que se salen del patrón: **Proline** y **Malic_Acid** tienen una asimetría hacia la derecha bastante marcada. Esto se ve tanto en los histogramas como en la diferencia entre su media y su mediana, que en ambos casos es notoria.
+Después de revisar cada variable por separado, la mayoría presenta distribuciones relativamente simétricas, mientras que **Magnesium**, **Malic_Acid**, **Color_Intensity** y **Proline** muestran asimetría hacia la derecha. Este comportamiento se aprecia en la forma de sus distribuciones y en que sus medias son superiores a sus medianas. Los histogramas detallados de Proline y Malic_Acid permiten visualizar directamente este desplazamiento, y la revisión general confirma que Magnesium y Color_Intensity también siguen ese patrón.
 
 Sobre los valores atípicos, encontré puntos fuera de rango en 7 de las 13 variables: Ash_Alcanity, Magnesium, Color_Intensity, Malic_Acid, Ash, Proanthocyanins y Hue. Las cantidades que me dieron coinciden con las que ya se habían calculado en el análisis preexploratorio, así que todo cuadra. Revisando esos valores, no parecen errores de digitación ni nada raro, están dentro de un rango que tiene sentido para vino, así que probablemente sea variabilidad normal entre los distintos cultivares y no algo que haya que corregir.
 
@@ -1918,7 +1933,7 @@ aplicar_PCA <- function(datos,
 
 # 4. EVALUACION DE LA VARIANZA EXPLICADA (SCREE PLOT)
 # ------------------------------------------------------------------------------
-  # La lista solo incorpora los graficos activados por sus respectivos flags.
+  # La lista solo incorpora los gráficos activados por sus respectivos flags.
   graficos <- list()
 
   if (SCREE_PLOT) {
@@ -1963,13 +1978,13 @@ aplicar_PCA <- function(datos,
   }
 
   if (return_plots) {
-    # Estructura cuando se necesitan analisis y visualizaciones.
+    # Estructura cuando se necesitan análisis y visualizaciones.
     return(list(resultado = pca_resultado, graficos = graficos))
   } else if (only_plots) {
     # En modo only_plots el objeto PCA ya pertenece al usuario.
     return(graficos)
   } else {
-    # Por default muestra los plots pero solo retorna el analisis.
+    # Por defecto muestra los gráficos, pero solo retorna el análisis.
     return(pca_resultado)
   }
 }
@@ -2353,7 +2368,7 @@ representa una dimensión química distinta de la resumida por PC1.
 
 4. PC3 explica **`r sprintf("%.2f", varianza_porcentaje_pca[3])` %** y sus dos cargas
 absolutas mayores corresponden a **`r paste(variables_dominantes_pca$PC3[1:2], collapse = " y ")`**,
-coherente con una dimensión relacionada con las cenizas del vino.
+coherente con una dimensión relacionada con las cenizas del vino, es decir, el residuo mineral que permanece después de eliminar sus componentes orgánicos mediante incineración.
 
 5. Aunque PC1 y PC2 facilitan la visualización, juntos conservan solo
 **`r sprintf("%.2f", varianza_acumulada_pca[2])` %**. Por esta razón, el modelado
@@ -2372,87 +2387,265 @@ clusters en la siguiente etapa.
 
 # Modelado
 
+En esta etapa se comparan dos representaciones de las mismas muestras: las 13
+variables químicas estandarizadas y los 5 componentes principales retenidos. Para
+cada representación se ajustan soluciones entre 2 y 10 clusters. Cada valor de
+$k$ utiliza la semilla reproducible `123 + k` y 25 inicializaciones.
+
+## Comparación de modelos candidatos
+
+```{r comparacion-modelos-kmeans}
+library(cluster)
+
+representaciones_kmeans <- list(
+  "Variables estandarizadas" = datos_estandarizados,
+  "Componentes PCA" = datos_pca_modelo
+)
+rango_k <- 2:10
+modelos_candidatos_kmeans <- list()
+resultados_candidatos_kmeans <- list()
+contador_candidato <- 1L
+
+for (nombre_representacion in names(representaciones_kmeans)) {
+  datos_representacion <- representaciones_kmeans[[nombre_representacion]]
+  distancia_representacion <- dist(datos_representacion)
+
+  for (k in rango_k) {
+    semilla_k <- 123L + k
+    set.seed(semilla_k)
+    modelo_candidato <- kmeans(datos_representacion, centers = k, nstart = 25)
+    silueta_candidato <- silhouette(
+      modelo_candidato$cluster,
+      distancia_representacion
+    )
+    clave_candidato <- paste(nombre_representacion, k, sep = "__k")
+
+    modelos_candidatos_kmeans[[clave_candidato]] <- modelo_candidato
+    resultados_candidatos_kmeans[[contador_candidato]] <- data.frame(
+      Representacion = nombre_representacion,
+      k = k,
+      Semilla = semilla_k,
+      WSS = modelo_candidato$tot.withinss,
+      Silueta_Promedio = mean(silueta_candidato[, "sil_width"]),
+      Tamano_Grupo_Menor = min(modelo_candidato$size),
+      Proporcion_Grupo_Menor = min(modelo_candidato$size) /
+        sum(modelo_candidato$size),
+      Clave = clave_candidato,
+      stringsAsFactors = FALSE
+    )
+    contador_candidato <- contador_candidato + 1L
+  }
+}
+
+tabla_candidatos_kmeans <- do.call(rbind, resultados_candidatos_kmeans)
+rownames(tabla_candidatos_kmeans) <- NULL
+
+stopifnot(
+  nrow(tabla_candidatos_kmeans) == 18L,
+  identical(sort(unique(tabla_candidatos_kmeans$k)), rango_k),
+  all(tabla_candidatos_kmeans$Semilla == 123L + tabla_candidatos_kmeans$k),
+  all(is.finite(tabla_candidatos_kmeans$WSS)),
+  all(is.finite(tabla_candidatos_kmeans$Silueta_Promedio)),
+  all(tabla_candidatos_kmeans$Silueta_Promedio >= -1),
+  all(tabla_candidatos_kmeans$Silueta_Promedio <= 1),
+  all(tabla_candidatos_kmeans$Tamano_Grupo_Menor > 0),
+  all(vapply(
+    split(tabla_candidatos_kmeans$WSS,
+          tabla_candidatos_kmeans$Representacion),
+    function(wss_representacion) all(diff(wss_representacion) <= 1e-8),
+    logical(1)
+  ))
+)
+```
+
+El WSS se interpreta únicamente dentro de cada representación, porque su magnitud
+depende del número de dimensiones y de la geometría del espacio. La silueta permite
+contrastar la separación relativa obtenida en ambas preparaciones.
 
 ## Método del codo
 
-```{r}
-set.seed(123)
-wss <- numeric(15)
-
-for (k in 1:15) {
-  km_temp <- kmeans(datos_pca_modelo, centers = k, nstart = 25)
-  wss[k] <- km_temp$tot.withinss
+```{r graficos-codo-kmeans, fig.width=9, fig.height=5}
+for (nombre_representacion in names(representaciones_kmeans)) {
+  resultados_representacion <- tabla_candidatos_kmeans[
+    tabla_candidatos_kmeans$Representacion == nombre_representacion,
+  ]
+  plot(
+    resultados_representacion$k,
+    resultados_representacion$WSS,
+    type = "b", pch = 19, col = "steelblue",
+    xlab = "Número de clusters (k)",
+    ylab = "Suma de cuadrados intra-cluster (WSS)",
+    main = paste("Método del codo -", nombre_representacion),
+    xaxt = "n"
+  )
+  axis(1, at = rango_k)
+  grid()
 }
-
-# Gráfico del codo
-
-plot(1:15, wss, type = "b", pch = 19,col = "blue",xlab = "Número de Clusters (k)", ylab = "Suma de Cuadrados Intra-Cluster",main = "Método del Codo")
-grid()
-abline(v = 3, col = "red", lty = 2)
-abline(v = 4, col = "blue", lty = 2, lwd = 2)
 ```
 
+En ambas representaciones el WSS disminuye al aumentar $k$. El codo más relevante
+se observa cerca de $k = 3$; después de ese punto las reducciones son menores.
 
 ## Método de silueta
-```{r}
-library(cluster)
-sil_promedio <- numeric(14)
 
-for (k in 2:15) {
-  set.seed(123)
-  km_temp <- kmeans(datos_pca_modelo, centers = k, nstart = 25)
-  sil_temp <- silhouette(km_temp$cluster, dist(datos_pca_modelo))
-  sil_promedio[k-1] <- mean(sil_temp[, 3])
+```{r graficos-silueta-kmeans, fig.width=9, fig.height=5}
+for (nombre_representacion in names(representaciones_kmeans)) {
+  resultados_representacion <- tabla_candidatos_kmeans[
+    tabla_candidatos_kmeans$Representacion == nombre_representacion,
+  ]
+  plot(
+    resultados_representacion$k,
+    resultados_representacion$Silueta_Promedio,
+    type = "b", pch = 19, col = "darkgreen",
+    xlab = "Número de clusters (k)",
+    ylab = "Coeficiente de silueta promedio",
+    main = paste("Método de silueta -", nombre_representacion),
+    xaxt = "n"
+  )
+  axis(1, at = rango_k)
+  grid()
 }
-
-
-# Gráfico de silueta
-
-plot(2:15, sil_promedio, type = "b", pch = 19,col = "darkgreen",xlab = "Número de Clusters (k)", ylab = "Coeficiente de Silueta Promedio",main = "Método de la Silueta")
-grid()
 ```
 
+## Resultados ordenados por representación
 
-## Selección del número de clusters
-```{r}
-cat("Codo sugiere: k = 3\n")
-cat("Silueta sugiere: k =", which.max(sil_promedio) + 1, "\n")
-cat("Máxima silueta:", round(max(sil_promedio), 3), "\n")
-cat("\nSe selecciona k = 3 por consistencia entre ambos métodos.\n")
+```{r tabla-candidatos-kmeans}
+tabla_candidatos_ordenada <- tabla_candidatos_kmeans[
+  order(
+    tabla_candidatos_kmeans$Representacion,
+    -tabla_candidatos_kmeans$Silueta_Promedio,
+    tabla_candidatos_kmeans$WSS,
+    -tabla_candidatos_kmeans$Proporcion_Grupo_Menor
+  ),
+]
+tabla_candidatos_mostrar <- tabla_candidatos_ordenada[, c(
+  "Representacion", "k", "Semilla", "WSS", "Silueta_Promedio",
+  "Tamano_Grupo_Menor", "Proporcion_Grupo_Menor"
+)]
+tabla_candidatos_mostrar$WSS <- round(tabla_candidatos_mostrar$WSS, 3)
+tabla_candidatos_mostrar$Silueta_Promedio <- round(
+  tabla_candidatos_mostrar$Silueta_Promedio, 4
+)
+tabla_candidatos_mostrar$Proporcion_Grupo_Menor <- round(
+  100 * tabla_candidatos_mostrar$Proporcion_Grupo_Menor, 1
+)
+knitr::kable(
+  tabla_candidatos_mostrar,
+  caption = paste(
+    "Modelos K-means ordenados por silueta dentro de cada representación",
+    "(la proporción se expresa en porcentaje)"
+  ),
+  align = c("l", "c", "c", "c", "c", "c", "c"),
+  row.names = FALSE
+)
 ```
 
+## Selección del mejor modelo
 
-# Modelo K-Means
+```{r seleccion-modelo-kmeans}
+mejores_por_representacion <- do.call(
+  rbind,
+  lapply(split(tabla_candidatos_kmeans,
+               tabla_candidatos_kmeans$Representacion),
+         function(resultados_representacion) {
+           resultados_representacion[
+             order(
+               -resultados_representacion$Silueta_Promedio,
+               resultados_representacion$WSS,
+               -resultados_representacion$Proporcion_Grupo_Menor
+             )[1],
+           ]
+         })
+)
+rownames(mejores_por_representacion) <- NULL
 
-```{r}
-k_optimo <- 3
-set.seed(123)
-kmeans_final <- kmeans(datos_pca_modelo, centers = k_optimo, nstart = 25)
+modelo_seleccionado <- mejores_por_representacion[
+  order(
+    -mejores_por_representacion$Silueta_Promedio,
+    -mejores_por_representacion$Proporcion_Grupo_Menor
+  )[1],
+]
+representacion_optima <- modelo_seleccionado$Representacion
+k_optimo <- modelo_seleccionado$k
+semilla_optima <- modelo_seleccionado$Semilla
+clave_optima <- modelo_seleccionado$Clave
+kmeans_final <- modelos_candidatos_kmeans[[clave_optima]]
+datos_modelo_ganador <- representaciones_kmeans[[representacion_optima]]
 
-# aqui se agregan clusters a los datos
+stopifnot(
+  nrow(modelo_seleccionado) == 1L,
+  identical(representacion_optima, "Componentes PCA"),
+  k_optimo == 3L,
+  semilla_optima == 126L,
+  abs(modelo_seleccionado$Silueta_Promedio - 0.3690763) < 1e-6,
+  abs(modelo_seleccionado$WSS - 820.3859) < 1e-3,
+  length(kmeans_final$cluster) == nrow(wine),
+  !anyNA(kmeans_final$cluster),
+  all(kmeans_final$cluster %in% seq_len(k_optimo))
+)
+
+tabla_mejores_mostrar <- mejores_por_representacion[, c(
+  "Representacion", "k", "Semilla", "WSS", "Silueta_Promedio",
+  "Tamano_Grupo_Menor", "Proporcion_Grupo_Menor"
+)]
+tabla_mejores_mostrar$WSS <- round(tabla_mejores_mostrar$WSS, 3)
+tabla_mejores_mostrar$Silueta_Promedio <- round(
+  tabla_mejores_mostrar$Silueta_Promedio, 4
+)
+tabla_mejores_mostrar$Proporcion_Grupo_Menor <- round(
+  100 * tabla_mejores_mostrar$Proporcion_Grupo_Menor, 1
+)
+knitr::kable(
+  tabla_mejores_mostrar,
+  caption = "Mejor candidato de cada representación",
+  align = c("l", "c", "c", "c", "c", "c", "c")
+)
+```
+
+La mayor silueta corresponde a **`r representacion_optima`** con
+**$k = `r k_optimo`**: alcanza **`r sprintf("%.4f", modelo_seleccionado$Silueta_Promedio)`**,
+frente a **`r sprintf("%.4f", mejores_por_representacion$Silueta_Promedio[mejores_por_representacion$Representacion == "Variables estandarizadas"])`**
+en las variables estandarizadas. Dentro del espacio PCA, su WSS es
+**`r sprintf("%.3f", modelo_seleccionado$WSS)`** y el grupo menor contiene
+**`r modelo_seleccionado$Tamano_Grupo_Menor` vinos**. Por ello se selecciona esta
+solución; el WSS respalda el codo dentro de cada representación, pero no se compara
+directamente entre ambas.
+
+# Modelo K-Means seleccionado
+
+```{r resultados-modelo-kmeans}
 wine$Cluster <- factor(kmeans_final$cluster)
 
-#Y aqui tendriamos los resultados
-
-cat("\n=== RESULTADOS DEL MODELO ===\n")
-cat("Tamaño de clusters:\n")
-print(kmeans_final$size)
-
-cat("\nPorcentaje por cluster:\n")
-print(round(kmeans_final$size / sum(kmeans_final$size) * 100, 1))
-
+tabla_tamanos_clusters <- data.frame(
+  Cluster = seq_len(k_optimo),
+  Cantidad = as.integer(kmeans_final$size),
+  Porcentaje = round(100 * kmeans_final$size / sum(kmeans_final$size), 1)
+)
+knitr::kable(
+  tabla_tamanos_clusters,
+  caption = "Tamaño y porcentaje de los clusters del modelo seleccionado",
+  align = c("c", "c", "c")
+)
 ```
 
 
-## Visualización de clusters pero con el PCA
-```{r}
+## Visualización de los clusters en el plano PCA
+
+```{r visualizacion-clusters-pca}
 varianza <- varianza_porcentaje_pca / 100
 pca_datos <- as.data.frame(scores_pca)
 pca_datos$Cluster <- wine$Cluster
 
-#grafico
 library(ggplot2)
-ggplot(pca_datos, aes(x = PC1, y = PC2, color = Cluster)) +geom_point(size = 3, alpha = 0.8) +labs(title = "Clusters de Vinos - Proyección PCA",x = paste0("PC1 (", round(varianza[1]*100, 1), "%)"),y = paste0("PC2 (", round(varianza[2]*100, 1), "%)")) +theme_minimal() + scale_color_brewer(palette = "Set1")
+ggplot(pca_datos, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(
+    title = "Clusters de vinos - Proyección PCA",
+    x = paste0("PC1 (", round(varianza[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(varianza[2] * 100, 1), "%)")
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
 
 ```
 
@@ -2461,118 +2654,513 @@ ggplot(pca_datos, aes(x = PC1, y = PC2, color = Cluster)) +geom_point(size = 3, 
 # Evaluación del modelo
 
 ## Calidad de los clusters
-```{r}
-sil_final <- silhouette(kmeans_final$cluster, dist(datos_pca_modelo))
-sil_promedio_final <- mean(sil_final[, 3])
 
-cat("=== EVALUACIÓN DE SEPARACIÓN ===\n")
-cat("Coeficiente de Silueta Promedio:", round(sil_promedio_final, 4), "\n")
+```{r evaluacion-separacion-kmeans}
+sil_final <- silhouette(kmeans_final$cluster, dist(datos_modelo_ganador))
+sil_promedio_final <- mean(sil_final[, "sil_width"])
 
 if (sil_promedio_final > 0.5) {
-  cat("Interpretación: BUENA separación entre clusters\n")
+  interpretacion_silueta_final <- "buena"
 } else if (sil_promedio_final > 0.25) {
-  cat("Interpretación: Separación ACEPTABLE\n")
+  interpretacion_silueta_final <- "aceptable"
 } else {
-  cat("Interpretación: Separación DÉBIL\n")
+  interpretacion_silueta_final <- "débil"
 }
+
+stopifnot(isTRUE(all.equal(
+  sil_promedio_final,
+  modelo_seleccionado$Silueta_Promedio,
+  tolerance = 1e-12
+)))
 ```
 
+El modelo seleccionado obtiene una silueta promedio de
+**`r sprintf("%.4f", sil_promedio_final)`**, correspondiente a una separación
+**`r interpretacion_silueta_final`**. La métrica indica que existen perfiles
+distinguibles, aunque con solapamiento entre algunas muestras.
 
 ## Características de cada cluster
-```{r}
+
+### Medias por cluster en los datos originales
+
+```{r medias-clusters-kmeans}
 medias_cluster <- aggregate(. ~ Cluster, data = wine, FUN = mean)
-cat("\n=== MEDIAS POR CLUSTER (DATOS ORIGINALES) ===\n")
-print(round(medias_cluster[, -1], 2))
 
+knitr::kable(
+  data.frame(Cluster = medias_cluster$Cluster, round(medias_cluster[, -1], 2)),
+  caption = "Medias por cluster en las variables químicas originales",
+  align = c("c", rep("c", ncol(medias_cluster) - 1))
+)
 ```
 
 
-## Variables que diferencian los grupos
-```{r}
-cat("\n=== VARIABLES QUE DISTINGUEN LOS GRUPOS ===\n")
+## Variables destacadas según las medias de los clusters
 
-resultados_anova <- data.frame()
+Para caracterizar los grupos se comparan las medias de cada variable química entre
+los tres clusters. La comparación se realiza **dentro de una misma variable**, porque
+las características utilizan unidades y escalas diferentes. El cluster con la media
+más alta indica en qué grupo esa característica alcanza su mayor nivel relativo.
 
-for (var in names(wine)[1:13]) {
-  formula <- as.formula(paste(var, "~ Cluster"))
-  aov_result <- aov(formula, data = wine)
-  p_val <- summary(aov_result)[[1]][["Pr(>F)"]][1]
-  f_val <- summary(aov_result)[[1]][["F value"]][1]
-  
-  resultados_anova <- rbind(resultados_anova, 
-                            data.frame(Variable = var, 
-                                       F_value = f_val, 
-                                       P_valor = p_val))
+```{r variables-destacadas-medias-clusters}
+variables_medias_cluster <- setdiff(names(medias_cluster), "Cluster")
+matriz_medias_cluster <- as.matrix(
+  medias_cluster[, variables_medias_cluster, drop = FALSE]
+)
+
+indices_medias_maximas <- apply(
+  matriz_medias_cluster,
+  2,
+  which.max
+)
+indices_medias_minimas <- apply(
+  matriz_medias_cluster,
+  2,
+  which.min
+)
+
+tabla_medias_destacadas <- data.frame(
+  Variable = variables_medias_cluster,
+  row.names = NULL,
+  check.names = FALSE
+)
+
+for (numero_cluster in seq_len(k_optimo)) {
+  tabla_medias_destacadas[[
+    paste0("Media_Cluster_", numero_cluster)
+  ]] <- as.numeric(matriz_medias_cluster[numero_cluster, ])
 }
 
-resultados_anova <- resultados_anova[order(resultados_anova$P_valor),]
+tabla_medias_destacadas$Cluster_Media_Mas_Alta <- paste(
+  "Cluster",
+  indices_medias_maximas
+)
+tabla_medias_destacadas$Media_Mas_Alta <- matriz_medias_cluster[
+  cbind(indices_medias_maximas, seq_along(variables_medias_cluster))
+]
 
-cat("\nTodas las variables ordenadas por significancia:\n")
-for (i in 1:nrow(resultados_anova)) {
-  cat(sprintf("%2d. %-20s F = %8.2f   p = %s\n", 
-              i,
-              resultados_anova$Variable[i], 
-              resultados_anova$F_value[i],
-              format(resultados_anova$P_valor[i], scientific = TRUE, digits = 3)))
+variables_maximas_por_cluster <- lapply(
+  seq_len(k_optimo),
+  function(numero_cluster) {
+    variables_medias_cluster[
+      indices_medias_maximas == numero_cluster
+    ]
+  }
+)
+
+variables_minimas_por_cluster <- lapply(
+  seq_len(k_optimo),
+  function(numero_cluster) {
+    variables_medias_cluster[
+      indices_medias_minimas == numero_cluster
+    ]
+  }
+)
+
+formatear_variables_cluster <- function(variables) {
+  if (length(variables) == 0L) {
+    "Ninguna"
+  } else {
+    paste(variables, collapse = ", ")
+  }
 }
 
-cat("\n=== TOP 5 VARIABLES MÁS DISCRIMINANTES ===\n")
-for (i in 1:5) {
-  cat(i, ".", resultados_anova$Variable[i], 
-      " (F =", round(resultados_anova$F_value[i], 2), 
-      ", p =", format(resultados_anova$P_valor[i], scientific = TRUE, digits = 3), ")\n")
-}
+resumen_variables_por_cluster <- data.frame(
+  Cluster = paste("Cluster", seq_len(k_optimo)),
+  Variables_con_media_mas_alta = vapply(
+    variables_maximas_por_cluster,
+    formatear_variables_cluster,
+    character(1)
+  ),
+  Variables_con_media_mas_baja = vapply(
+    variables_minimas_por_cluster,
+    formatear_variables_cluster,
+    character(1)
+  ),
+  row.names = NULL
+)
+
+stopifnot(
+  nrow(tabla_medias_destacadas) == length(variables_finales),
+  all(indices_medias_maximas %in% seq_len(k_optimo)),
+  all(indices_medias_minimas %in% seq_len(k_optimo)),
+  sum(lengths(variables_maximas_por_cluster)) == length(variables_finales),
+  sum(lengths(variables_minimas_por_cluster)) == length(variables_finales)
+)
+
+tabla_medias_destacadas_mostrar <- tabla_medias_destacadas
+columnas_medias_mostrar <- grep(
+  "^Media_",
+  names(tabla_medias_destacadas_mostrar)
+)
+tabla_medias_destacadas_mostrar[columnas_medias_mostrar] <- round(
+  tabla_medias_destacadas_mostrar[columnas_medias_mostrar],
+  2
+)
+
+knitr::kable(
+  tabla_medias_destacadas_mostrar,
+  caption = paste(
+    "Comparación de medias e identificación del cluster",
+    "con la media más alta en cada variable"
+  ),
+  align = c("l", rep("c", k_optimo), "c", "c"),
+  row.names = FALSE
+)
 ```
 
+### Resumen de variables destacadas por cluster
+
+```{r resumen-variables-destacadas-clusters}
+knitr::kable(
+  resumen_variables_por_cluster,
+  caption = "Variables con las medias más altas y más bajas en cada cluster",
+  align = c("c", "l", "l"),
+  row.names = FALSE
+)
+```
+
+- El **Cluster 1** no presenta la media más alta en ninguna variable. Se identifica
+  por registrar los niveles más bajos en
+  **`r formatear_variables_cluster(variables_minimas_por_cluster[[1]])`**, lo que
+  respalda su descripción como perfil ligero y de menor concentración.
+- El **Cluster 2** presenta las medias más altas en
+  **`r formatear_variables_cluster(variables_maximas_por_cluster[[2]])`**. Estas
+  características explican su perfil de mayor acidez málica e intensidad de color.
+- El **Cluster 3** alcanza las medias más altas en
+  **`r formatear_variables_cluster(variables_maximas_por_cluster[[3]])`**, en
+  concordancia con su perfil concentrado, alcohólico y rico en compuestos fenólicos.
+
+Estas comparaciones son descriptivas. Permiten caracterizar los perfiles encontrados,
+pero no representan una prueba causal ni una validación externa de los clusters.
 
 ## Comparación de perfiles químicos
 
-```{r}
-medias_estand <- aggregate(datos_estandarizados,
-                           by = list(Cluster = kmeans_final$cluster), 
-                           FUN = mean)
+```{r preparacion-visualizacion-perfiles, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(plotly)
 
-# matriz para el gráfico
-matriz_perfiles <- as.matrix(medias_estand[, -1])
-rownames(matriz_perfiles) <- paste("Cluster", 1:3)
+nombres_variables_perfil <- c(
+  Alcohol = "Alcohol",
+  Malic_Acid = "Ácido málico",
+  Ash = "Ceniza",
+  Ash_Alcanity = "Alcalinidad de la ceniza",
+  Magnesium = "Magnesio",
+  Total_Phenols = "Fenoles totales",
+  Flavanoids = "Flavanoides",
+  Nonflavanoid_Phenols = "Fenoles no flavanoides",
+  Proanthocyanins = "Proantocianinas",
+  Color_Intensity = "Intensidad de color",
+  Hue = "Matiz (Hue)",
+  OD280 = "OD280",
+  Proline = "Prolina"
+)
 
-# gráfico de losperfiles
-matplot(t(matriz_perfiles), 
-        type = "l", 
-        lwd = 2,
-        col = c("red", "blue", "darkgreen"),
-        xlab = "Variables",
-        ylab = "Valor Estandarizado",
-        main = "Perfiles de los Clusters",
-        axes = FALSE)
-axis(1, at = 1:13, labels = names(wine)[1:13], las = 2, cex.axis = 0.7)
-axis(2)
-legend("topright", 
-       legend = paste("Cluster", 1:3), 
-       col = c("red", "blue", "darkgreen"), 
-       lwd = 2)
-box()
+nombres_perfiles_grafico <- c(
+  "1" = "Perfil ligero y de menor concentración",
+  "2" = paste(
+    "Color intenso, mayor acidez málica",
+    "y bajo contenido fenólico"
+  ),
+  "3" = "Perfil concentrado, alcohólico y rico en fenoles"
+)
+
+medias_generales_perfil <- vapply(
+  datos_modelado,
+  mean,
+  numeric(1)
+)
+desviaciones_generales_perfil <- vapply(
+  datos_modelado,
+  sd,
+  numeric(1)
+)
+
+resumen_numerico_perfiles <- datos_modelado |>
+  mutate(Numero_Grupo = as.integer(kmeans_final$cluster)) |>
+  pivot_longer(
+    cols = all_of(variables_finales),
+    names_to = "Variable",
+    values_to = "Valor"
+  ) |>
+  group_by(Numero_Grupo, Variable) |>
+  summarise(
+    Media = mean(Valor),
+    Mediana = median(Valor),
+    .groups = "drop"
+  ) |>
+  mutate(
+    Media_general = unname(medias_generales_perfil[Variable]),
+    Desviacion_general = unname(desviaciones_generales_perfil[Variable]),
+    Diferencia_estandarizada =
+      (Media - Media_general) / Desviacion_general,
+    Grupo = factor(
+      Numero_Grupo,
+      levels = seq_len(k_optimo),
+      labels = paste("Cluster", seq_len(k_optimo))
+    ),
+    Etiqueta_Variable = unname(nombres_variables_perfil[Variable]),
+    Indice_Variable = match(Variable, variables_finales),
+    Nombre_Perfil = unname(
+      nombres_perfiles_grafico[as.character(Numero_Grupo)]
+    )
+  ) |>
+  arrange(Numero_Grupo, Indice_Variable)
+
+stopifnot(
+  nrow(resumen_numerico_perfiles) ==
+    k_optimo * length(variables_finales),
+  all(table(resumen_numerico_perfiles$Numero_Grupo) ==
+        length(variables_finales)),
+  !anyNA(resumen_numerico_perfiles),
+  all(is.finite(resumen_numerico_perfiles$Diferencia_estandarizada)),
+  identical(
+    sort(unique(resumen_numerico_perfiles$Variable)),
+    sort(variables_finales)
+  )
+)
 ```
+
+### Visualización de las diferencias estandarizadas por cluster
+
+El mapa expresa cuánto se aleja la media de cada cluster respecto a la media general
+de la variable. Los valores positivos se encuentran por encima del promedio global y
+los negativos por debajo; la magnitud se expresa en desviaciones estándar (DE).
+
+```{r mapa-diferencias-estandarizadas-clusters, echo=FALSE, fig.width=11, fig.height=6.5, out.width="100%"}
+datos_mapa_perfiles <- resumen_numerico_perfiles |>
+  mutate(
+    Variable_Grafico = factor(
+      Etiqueta_Variable,
+      levels = rev(unname(nombres_variables_perfil[variables_finales]))
+    )
+  )
+
+limite_mapa_perfiles <- max(
+  abs(datos_mapa_perfiles$Diferencia_estandarizada),
+  na.rm = TRUE
+)
+
+stopifnot(
+  is.finite(limite_mapa_perfiles),
+  limite_mapa_perfiles > 0
+)
+
+ggplot(
+  datos_mapa_perfiles,
+  aes(x = Variable_Grafico, y = Grupo, fill = Diferencia_estandarizada)
+) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(
+    aes(label = sprintf("%+.2f DE", Diferencia_estandarizada)),
+    color = "black",
+    size = 3.1
+  ) +
+  scale_x_discrete(
+    labels = function(etiquetas) {
+      vapply(
+        etiquetas,
+        function(etiqueta) paste(strwrap(etiqueta, width = 18), collapse = "\n"),
+        character(1)
+      )
+    }
+  ) +
+  scale_fill_gradient2(
+    low = "#B2182B",
+    mid = "#F7F7F7",
+    high = "#2166AC",
+    midpoint = 0,
+    limits = c(-limite_mapa_perfiles, limite_mapa_perfiles),
+    name = "Diferencia\nrespecto a la\nmedia general"
+  ) +
+  labs(
+    title = "Perfil estandarizado de los clusters",
+    subtitle = "Diferencia entre la media de cada cluster y la media general",
+    x = NULL,
+    y = NULL,
+    caption = "Valores expresados en desviaciones estándar (DE)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      face = "bold",
+      angle = 30,
+      hjust = 1,
+      vjust = 1,
+      size = 9,
+      margin = margin(t = 8)
+    ),
+    axis.text.y = element_text(face = "bold", size = 10),
+    legend.position = "right",
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 9),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(margin = margin(b = 10)),
+    plot.caption = element_text(margin = margin(t = 8)),
+    plot.margin = margin(10, 15, 12, 10)
+  )
+```
+
+### Visualización espacial de los perfiles químicos
+
+La visualización 3D presenta las mismas diferencias estandarizadas y permite rotar,
+acercar y consultar los valores de cada punto. El eje vertical de diferencias está
+centrado en cero, que representa la media general de cada variable.
+
+```{r grafico-perfiles-quimicos-3d, echo=FALSE, fig.width=11, fig.height=7}
+perfiles_grafico_3d <- resumen_numerico_perfiles |>
+  mutate(
+    Texto = paste0(
+      "<b>", Grupo, "</b><br>",
+      "<b>Perfil:</b> ", Nombre_Perfil, "<br>",
+      "<b>Variable:</b> ", Etiqueta_Variable, "<br>",
+      "<b>Media del cluster:</b> ", round(Media, 3), "<br>",
+      "<b>Mediana del cluster:</b> ", round(Mediana, 3), "<br>",
+      "<b>Media general:</b> ", round(Media_general, 3), "<br>",
+      "<b>Diferencia estandarizada:</b> ",
+      sprintf("%+.3f DE", Diferencia_estandarizada)
+    )
+  )
+
+colores_clusters_3d <- c("#D95F76", "#4DAF4A", "#1696D2")
+
+grafico_perfiles_3d <- plot_ly(
+  data = perfiles_grafico_3d,
+  x = ~Indice_Variable,
+  y = ~Numero_Grupo,
+  z = ~Diferencia_estandarizada,
+  color = ~Grupo,
+  colors = colores_clusters_3d,
+  type = "scatter3d",
+  mode = "lines+markers",
+  line = list(width = 5),
+  marker = list(size = 5),
+  text = ~Texto,
+  hoverinfo = "text"
+) |>
+  layout(
+    title = list(text = "Perfiles químicos estandarizados de los clusters"),
+    legend = list(title = list(text = "Cluster")),
+    scene = list(
+      xaxis = list(
+        title = "Variable",
+        tickmode = "array",
+        tickvals = seq_along(variables_finales),
+        ticktext = unname(nombres_variables_perfil[variables_finales]),
+        tickangle = -25
+      ),
+      yaxis = list(
+        title = "Cluster",
+        tickmode = "array",
+        tickvals = seq_len(k_optimo),
+        ticktext = paste("Cluster", seq_len(k_optimo))
+      ),
+      zaxis = list(
+        title = "Diferencia respecto a la media general (DE)",
+        zeroline = TRUE,
+        zerolinecolor = "#333333",
+        zerolinewidth = 2,
+        range = c(-limite_mapa_perfiles, limite_mapa_perfiles)
+      ),
+      camera = list(eye = list(x = 1.55, y = 1.55, z = 1.15))
+    ),
+    margin = list(l = 10, r = 10, b = 80, t = 60)
+  )
+
+stopifnot(
+  length(unique(perfiles_grafico_3d$Grupo)) == k_optimo,
+  all(nzchar(perfiles_grafico_3d$Texto))
+)
+
+grafico_perfiles_3d
+```
+
+### Interpretación de los perfiles encontrados
+
+```{r preparacion-interpretacion-perfiles, include=FALSE}
+perfil_cluster_1 <- medias_cluster[medias_cluster$Cluster == 1, ]
+perfil_cluster_2 <- medias_cluster[medias_cluster$Cluster == 2, ]
+perfil_cluster_3 <- medias_cluster[medias_cluster$Cluster == 3, ]
+
+porcentaje_cluster <- 100 * kmeans_final$size / sum(kmeans_final$size)
+```
+
+#### Cluster 1: perfil ligero y de menor concentración
+
+Este grupo reúne **`r kmeans_final$size[1]` vinos**
+(**`r sprintf("%.1f", porcentaje_cluster[1])` %**). Presenta el menor promedio de
+alcohol (**`r sprintf("%.2f", perfil_cluster_1$Alcohol)`**), la menor intensidad de
+color (**`r sprintf("%.2f", perfil_cluster_1$Color_Intensity)`**) y una concentración
+de prolina relativamente baja (**`r sprintf("%.2f", perfil_cluster_1$Proline)`**).
+Sus fenoles totales, flavanoides y OD280 se encuentran en niveles intermedios frente
+a los otros grupos. En términos comparativos, representa vinos con una composición
+química menos concentrada y un perfil más moderado.
+
+#### Cluster 2: color intenso, mayor acidez málica y bajo contenido fenólico
+
+Este grupo contiene **`r kmeans_final$size[2]` vinos**
+(**`r sprintf("%.1f", porcentaje_cluster[2])` %**). Se distingue por el mayor ácido
+málico (**`r sprintf("%.2f", perfil_cluster_2$Malic_Acid)`**) y la mayor intensidad
+de color (**`r sprintf("%.2f", perfil_cluster_2$Color_Intensity)`**). Al mismo tiempo,
+registra los menores promedios de fenoles totales
+(**`r sprintf("%.2f", perfil_cluster_2$Total_Phenols)`**), flavanoides
+(**`r sprintf("%.2f", perfil_cluster_2$Flavanoids)`**), Hue
+(**`r sprintf("%.2f", perfil_cluster_2$Hue)`**) y OD280
+(**`r sprintf("%.2f", perfil_cluster_2$OD280)`**). Por ello, describe un perfil de
+coloración intensa y mayor acidez málica, pero con menor presencia relativa de
+compuestos fenólicos.
+
+#### Cluster 3: perfil concentrado, alcohólico y rico en fenoles
+
+Este grupo comprende **`r kmeans_final$size[3]` vinos**
+(**`r sprintf("%.1f", porcentaje_cluster[3])` %**). Presenta los mayores promedios
+de alcohol (**`r sprintf("%.2f", perfil_cluster_3$Alcohol)`**), magnesio
+(**`r sprintf("%.2f", perfil_cluster_3$Magnesium)`**), fenoles totales
+(**`r sprintf("%.2f", perfil_cluster_3$Total_Phenols)`**), flavanoides
+(**`r sprintf("%.2f", perfil_cluster_3$Flavanoids)`**), OD280
+(**`r sprintf("%.2f", perfil_cluster_3$OD280)`**) y prolina
+(**`r sprintf("%.2f", perfil_cluster_3$Proline)`**). Esta combinación corresponde
+al perfil químico más concentrado y con mayor presencia de compuestos fenólicos.
+
+<div class="advertencia">
+Estas etiquetas resumen diferencias químicas relativas entre los clusters. Los
+números de grupo son identificadores arbitrarios y no representan un orden de menor
+a mayor calidad. Como el dataset no contiene variedad de uva, denominación, evaluación
+sensorial ni una variable objetivo de calidad, no es posible afirmar que los grupos
+correspondan a tipos comerciales específicos o a vinos de calidad alta, media o baja.
+</div>
 
 
 ## Respuesta a las preguntas de análisis
-### Pregunta 1: ¿Cuántos grupos naturales de vinos existen?
+### Pregunta 1: ¿Cuántos grupos óptimos de vinos existen?
 
-Respuesta: Se identificaron 3 grupos naturales de vinos.
+Respuesta: La comparación identifica una solución de **3 grupos de vinos** sobre
+los componentes PCA como la mejor partición entre los candidatos evaluados.
 
 Justificación:
 
-- El método del codo muestra un quiebre en k=3
-- El método de silueta tiene su valor máximo en k=3 (0.369)
-- El coeficiente de silueta final es 0.3691, lo que indica una separación ACEPTABLE
-- Los 3 grupos son interpretables químicamente
+- Se compararon 18 modelos: dos representaciones y nueve valores de $k$ entre 2 y 10.
+- En ambas representaciones, la mayor silueta corresponde a $k = 3$.
+- PCA con $k = 3$ alcanza la silueta global más alta (`r sprintf("%.4f", sil_promedio_final)`).
+- El WSS de `r sprintf("%.3f", modelo_seleccionado$WSS)` respalda el quiebre del
+  codo dentro del espacio PCA.
+- Los tres perfiles son interpretables químicamente, aunque presentan cierto solapamiento.
 
-### Pregunta 2: ¿Qué variables distinguen mejor los grupos?
-1. Flavanoids 
-2. OD280 
-3. Proline
-4. Alcohol 
-5. Color_Intensity 
+### Pregunta 2: ¿Qué características distinguen principalmente a cada grupo?
+
+La comparación descriptiva de las medias permite identificar los siguientes rasgos:
+
+- El **Cluster 1** no presenta la media máxima en ninguna variable y se caracteriza
+  por los niveles más bajos en
+  **`r formatear_variables_cluster(variables_minimas_por_cluster[[1]])`**.
+- El **Cluster 2** presenta las medias más altas en
+  **`r formatear_variables_cluster(variables_maximas_por_cluster[[2]])`**.
+- El **Cluster 3** presenta las medias más altas en
+  **`r formatear_variables_cluster(variables_maximas_por_cluster[[3]])`**.
+
+Estas diferencias describen perfiles relativos dentro del conjunto analizado y no
+representan una clasificación de calidad.
 
 
 
@@ -2587,33 +3175,36 @@ Justificación:
 
 2. Análisis exploratorio
    - Se identificaron diferencias importantes de escala entre variables
-   - Proline y Malic_Acid presentan distribuciones asimétricas
+   - Magnesium, Malic_Acid, Color_Intensity y Proline presentan distribuciones asimétricas hacia la derecha
    - Se detectaron valores atípicos en 7 variables (dentro de lo esperado)
    - Correlación fuerte entre Total_Phenols y Flavanoids (r = 0.865)
 
 3. Reducción de dimensionalidad (PCA)
    - Los primeros 2 componentes explican aproximadamente el 55.4% de la varianza
-   - PC1 está asociado principalmente con compuestos fenólicos
-   - PC2 está asociado con características de color y acidez
-   - PC3 esta asociado con los compuestos minerales y fenoles que no son flavonoides
-   - PC4 y PC5 se utilizan como complementos para aportar informacion para el modelado
+   - PC1 está asociado principalmente con flavonoides, fenoles totales, OD280 y proantocianinas
+   - PC2 está asociado principalmente con intensidad de color, alcohol, prolina y ceniza
+   - PC3 está asociado con los compuestos minerales y su alcalinidad, alcohol y fenoles que no son flavonoides
+   - PC4 y PC5 se utilizan como complementos para aportar información para el modelado
 
 4. Clustering (K-Means)
-   - Se realiza el modelado sobre 5 componentes principales que, en total, explican aproximadamente el 80% de la variabilidad de las 13 variables originales.
-   - Se identificaron 3 grupos naturales de vinos
-   - Coeficiente de silueta: 0.3691 (separación ACEPTABLE)
-   - Tamaño de clusters: 62, 65 y 51 vinos
+   - Se compararon las 13 variables estandarizadas y los 5 componentes PCA para valores de $k$ entre 2 y 10.
+   - Cada candidato utilizó una semilla específica (`123 + k`) y 25 inicializaciones.
+   - La mejor solución utiliza 5 componentes principales, que explican aproximadamente el 80% de la variabilidad de las 13 variables originales.
+   - Se identificaron 3 perfiles con una silueta de `r sprintf("%.4f", sil_promedio_final)` (separación `r toupper(interpretacion_silueta_final)`).
+   - Los clusters contienen `r paste(kmeans_final$size, collapse = ", ")` vinos.
+   - El Cluster 1 presenta un perfil ligero y menos concentrado; el Cluster 2 combina
+     color intenso, mayor acidez málica y menor contenido fenólico; y el Cluster 3
+     muestra el perfil más concentrado, alcohólico y rico en fenoles.
 
-5. Variables discriminantes
-   - Las 5 variables más importantes para la clasificación son:
-
-     1. Flavanoids
-     2. OD280
-     3. Proline
-     4. Alcohol
-     5. Color_Intensity
-
-   - Estas variables permiten diferenciar los perfiles de vino
+5. Variables destacadas según las medias
+   - El Cluster 1 no presenta la media más alta en ninguna característica y se
+     identifica por sus niveles relativamente bajos en
+     `r formatear_variables_cluster(variables_minimas_por_cluster[[1]])`.
+   - El Cluster 2 presenta las medias más altas en
+     `r formatear_variables_cluster(variables_maximas_por_cluster[[2]])`.
+   - El Cluster 3 presenta las medias más altas en
+     `r formatear_variables_cluster(variables_maximas_por_cluster[[3]])`.
+   - Estas comparaciones son descriptivas y se realizan por variable entre clusters.
 
 ## Respuesta a la problemática principal
 
@@ -2621,20 +3212,30 @@ La problemática principal consistía en identificar grupos de vinos con caracte
 
 Resultados obtenidos:
 
-- Se logró identificar 3 grupos de vinos con perfiles químicos diferenciados
-- La separación entre grupos es ACEPTABLE (silueta = 0.3691)
-- Se identificaron las variables clave para la clasificación: Flavanoids, OD280 y Proline
-- Los clusters se interpretan como vinos de ALTA, MEDIA y BAJA calidad
-- El modelo permite clasificar automáticamente nuevos vinos
+- Se compararon 18 soluciones K-means y se seleccionó PCA con $k = 3$.
+- Se identificaron 3 grupos con perfiles químicos diferenciados.
+- La separación es `r toupper(interpretacion_silueta_final)` (silueta = `r sprintf("%.4f", sil_promedio_final)`).
+- Según la comparación de medias, el Cluster 2 destaca por
+  `r formatear_variables_cluster(variables_maximas_por_cluster[[2]])`, mientras que
+  el Cluster 3 destaca por
+  `r formatear_variables_cluster(variables_maximas_por_cluster[[3]])`; el Cluster 1
+  representa el perfil de menor concentración relativa.
+- Los clusters describen perfiles químicos relativos; el dataset no contiene una
+  variable de calidad que permita calificarlos como vinos de calidad alta, media o baja.
 
 ## Conclusión final
-El análisis de clustering mediante K-Means ha permitido identificar 3 grupos naturales de vinos basados en sus características químicas. El modelo presenta una separación aceptable y permite diferenciar claramente vinos de alta, media y baja calidad.
+La comparación de modelos K-Means permitió seleccionar de forma reproducible una
+partición de 3 clusters sobre los 5 componentes PCA. Esta solución obtuvo la mayor
+silueta entre los 18 candidatos y su WSS es coherente con el codo observado dentro
+del espacio PCA. La separación es aceptable, por lo que los resultados representan
+perfiles químicos útiles, pero no clases naturales perfectamente separadas.
 
-Este análisis demuestra que es posible clasificar vinos por su perfil químico utilizando técnicas de aprendizaje no supervisado. Los resultados obtenidos pueden ser de utilidad para:
+El análisis demuestra que es posible segmentar las muestras por su perfil químico
+mediante aprendizaje no supervisado. Los resultados pueden ser de utilidad para:
 
-- Control de calidad en la producción de vinos
-- Clasificación automática de nuevos vinos
-- Identificación de características deseables en vinos de alta calidad
+- Clasificación de lotes en la producción de vinos
+- Exploración de similitudes entre nuevas muestras de vino
+- Identificación de grupos con características químicas deseables mediante vinos preetiquetados como preferentes o de alta calidad, para comparar su comportamiento y evaluar hacia qué grupo tienden en futuras optimizaciones del modelo.
 
 El proyecto cumple con el objetivo planteado inicialmente y proporciona una base sólida para futuros análisis que puedan incorporar más variables, más muestras o diferentes técnicas de modelado.
 

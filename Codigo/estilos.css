@@ -42,10 +42,12 @@ pre:not(.sourceCode) {
   overflow-x: auto;
 }
 
-/* El scroll horizontal queda dentro de tablas grandes */
-.table-responsive {
+/* Los elementos visuales nunca amplían el ancho general de la página */
+img,
+svg,
+canvas {
   max-width: 100%;
-  overflow-x: auto;
+  height: auto;
 }
 
 
@@ -369,11 +371,16 @@ pre:not(.sourceCode) {
 
 table,
 .table {
+  display: block;
   width: 100% !important;
+  max-width: 100%;
   margin: 22px 0 30px !important;
   border-collapse: separate !important;
   border-spacing: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border: 1px solid #dfe4ea;
   border-radius: 12px;
