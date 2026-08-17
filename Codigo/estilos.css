@@ -729,3 +729,62 @@ button.code-folding-btn:hover {
     box-shadow: none;
   }
 }
+/* =========================================================
+   LEYENDA MATRIZ DE CORRELACIÓN
+   ========================================================= */
+
+.leyenda-correlacion {
+  max-width: 760px;
+  margin: 18px auto 30px;
+  padding: 16px 22px;
+  background: #ffffff;
+  border: 1px solid #111827;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.leyenda-titulo {
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #1f2937;
+}
+
+.leyenda-items {
+  display: flex;
+  justify-content: center;
+  gap: 35px;
+  flex-wrap: wrap;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.leyenda-item small {
+  color: #6b7280;
+}
+
+.leyenda-color {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.leyenda-color.positiva {
+  background: #1d4ed8;
+}
+
+.leyenda-color.neutra {
+  background: #f8fafc;
+}
+
+.leyenda-color.negativa {
+  background: #b91c1c;
+}

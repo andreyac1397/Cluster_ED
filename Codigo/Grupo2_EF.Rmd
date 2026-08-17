@@ -801,7 +801,7 @@ La tabla permite observar la dirección y la intensidad de las relaciones lineal
 margenes_originales <- par("mar")
 
 # Ajustar los márgenes para mostrar los nombres de las variables
-par(mar = c(10, 10, 4, 2))
+par(mar = c(10, 10, 4, 12))
 
 # Cantidad de variables
 cantidad_variables <- ncol(matriz_correlacion)
@@ -883,9 +883,32 @@ for (columna in seq_len(cantidad_variables)) {
 # Dibujar el borde del gráfico
 box()
 
+# Agregar leyenda a la derecha, fuera de la matriz
+legend(
+  "right",
+  inset = c(-0.30, 0),
+  xpd = TRUE,
+  legend = c(
+    "Positiva",
+    "Cercana a 0",
+    "Negativa"
+  ),
+  fill = c(
+    "#1d4ed8",
+    "#f8fafc",
+    "#b91c1c"
+  ),
+  border = "#374151",
+  bg = "white",
+  title = "Correlación",
+  cex = 0.75,
+  bty = "o"
+)
+
 # Restaurar los márgenes originales
 par(mar = margenes_originales)
 ```
+
 <div class="analisis">
 El mapa permite observar simultáneamente la dirección, la intensidad y el valor de las correlaciones. Los tonos azules representan relaciones positivas, los tonos rojos representan relaciones negativas y los colores claros indican correlaciones cercanas a cero. La diagonal presenta valores de 1.00 porque cada variable mantiene una correlación perfecta consigo misma.
 </div>
@@ -1313,24 +1336,31 @@ El EDA bivariado muestra que existen relaciones químicas suficientemente claras
 
 
 # Preparación para el modelado
-```{r}
-variables_finales <- names(wine)
+
+## Variables finales
+
+Después del análisis exploratorio y de la revisión de posibles relaciones redundantes, se decidió conservar las 13 variables químicas originales. No se encontraron variables constantes, problemas de calidad ni evidencia suficiente para eliminar alguna característica antes del modelado.
+
+```{r variables-finales-modelado}
+variables_finales <- names(wine)[sapply(wine, is.numeric)]
 
 cat("Variables finales seleccionadas:", length(variables_finales), "\n")
 cat("Variables:", paste(variables_finales, collapse = ", "), "\n")
 ```
 
-
-## Variables finales
-
-
 ## Estandarización
-```{r}
-wine_estandarizado <- scale(wine[, variables_finales])
+
+Antes de aplicar PCA y K-Means se estandarizaron las variables para que todas trabajaran en una escala comparable.
+
+```{r estandarizacion-modelado}
+wine_estandarizado <- scale(
+  wine[, variables_finales]
+)
 ```
 
-## verificar que quedo estandarizado
-```{r}
+## Verificación de la estandarización
+
+```{r verificar-estandarizacion}
 cat("Medias después de estandarizar:\n")
 print(round(colMeans(wine_estandarizado), 10))
 
@@ -1338,370 +1368,1634 @@ cat("\nDesviaciones estándar después de estandarizar:\n")
 print(round(apply(wine_estandarizado, 2, sd), 10))
 ```
 
-
 ## Justificación de la estandarización
 
-```{r}
-cat("=== JUSTIFICACIÓN DE LA ESTANDARIZACIÓN ===\n\n")
+La estandarización es necesaria porque las variables del dataset presentan escalas muy diferentes. Por ejemplo, `Proline` trabaja con valores de cientos, mientras que variables como `Hue` y `Nonflavanoid_Phenols` presentan valores mucho menores.
+
+Esta diferencia es especialmente importante para K-Means, ya que el algoritmo utiliza distancias para formar los grupos. Si se utilizaran directamente los valores originales, las variables con magnitudes numéricas mayores podrían tener una influencia desproporcionada en el resultado.
+
+Después de la estandarización, cada variable presenta aproximadamente una media de 0 y una desviación estándar de 1. De esta forma, todas las características químicas pueden participar en condiciones comparables.
+
+A partir de estos datos estandarizados se evaluarán dos enfoques:
+
+**K-Means utilizando las 13 variables estandarizadas** y **K-Means utilizando una cantidad reducida de componentes obtenidos mediante PCA**.
+
+
+# Análisis de Componentes Principales (PCA)
+
+## Objetivo del PCA
+
+El Análisis de Componentes Principales se utiliza para determinar si la información contenida en las 13 variables químicas puede representarse mediante una cantidad menor de dimensiones.
+
+PCA transforma las variables originales en nuevos componentes que concentran progresivamente la variabilidad presente en los datos. Los primeros componentes contienen la mayor cantidad de información, mientras que los últimos aportan cantidades cada vez menores.
+
+Además de facilitar la visualización, en este proyecto PCA será utilizado para construir una segunda representación de los datos y posteriormente comparar un modelo K-Means basado en las variables estandarizadas contra otro basado en los componentes principales seleccionados.
+
+## Aplicación del PCA
+
+Como las variables ya fueron estandarizadas previamente, no es necesario volver a escalarlas dentro de `prcomp()`.
+
+```{r aplicacion-pca}
+pca_resultado <- prcomp(
+  wine_estandarizado,
+  center = FALSE,
+  scale. = FALSE
+)
 ```
 
+## Varianza explicada y acumulada
 
-# (PCA)
+La varianza explicada indica qué porcentaje de la información del dataset representa cada componente principal.
 
+La varianza acumulada muestra cuánto de la información total se conserva al utilizar conjuntamente los primeros componentes.
 
-## Aplicación PCA
-
-```{r}
-pca_resultado <- prcomp(wine_estandarizado, center = TRUE, scale. = TRUE)
-
-```
-
-##resumen del PCA
-```{r}
-summary(pca_resultado)
-
-```
-
-
-## Varianza explicada
-```{r}
-varianza_explicada <- pca_resultado$sdev^2 / sum(pca_resultado$sdev^2)
-varianza_acumulada <- cumsum(varianza_explicada)
-
-```
-
-## Tabla de varianza explicada
-
-```{r}
-tabla_varianza <- data.frame(
-  Componente = 1:length(varianza_explicada),
-  Varianza_Explicada = round(varianza_explicada * 100, 2),
-  Varianza_Acumulada = round(varianza_acumulada * 100, 2)
+```{r varianza-pca}
+varianza_explicada <- (
+  pca_resultado$sdev^2 /
+  sum(pca_resultado$sdev^2)
 )
 
-knitr::kable(tabla_varianza, 
-             caption = "Varianza explicada por cada componente principal",
-             align = c("c", "c", "c"))
-```
-# Gráfico de varianza explicada
+varianza_acumulada <- cumsum(
+  varianza_explicada
+)
 
-```{r}
-par(mfrow = c(1, 2))
+tabla_varianza <- data.frame(
+  Componente = paste0(
+    "PC",
+    seq_along(varianza_explicada)
+  ),
+  Varianza_Explicada = round(
+    varianza_explicada * 100,
+    2
+  ),
+  Varianza_Acumulada = round(
+    varianza_acumulada * 100,
+    2
+  )
+)
+
+knitr::kable(
+  tabla_varianza,
+  caption = "Varianza explicada y acumulada por componente principal",
+  align = c("c", "c", "c")
+)
 ```
 
-```{r}
-plot(varianza_explicada * 100, type = "b", pch = 19,col = "#1d4ed8",xlab = "Componente Principal",ylab = "Varianza Explicada (%)", main = "Scree Plot",ylim = c(0, max(varianza_explicada * 100) + 5))
+## Selección del número de componentes
+
+Para seleccionar la cantidad de componentes se estableció como referencia conservar al menos el **85% de la varianza acumulada**.
+
+Este porcentaje permite mantener una parte importante de la información original y, al mismo tiempo, reducir la cantidad de dimensiones utilizadas en el segundo modelo de clustering.
+
+```{r seleccion-componentes-pca}
+umbral_varianza <- 0.85
+
+cantidad_componentes <- which(
+  varianza_acumulada >= umbral_varianza
+)[1]
+
+varianza_conservada <- varianza_acumulada[
+  cantidad_componentes
+]
+
+cat(
+  "Umbral seleccionado:",
+  umbral_varianza * 100,
+  "%\n"
+)
+
+cat(
+  "Cantidad de componentes necesarios:",
+  cantidad_componentes,
+  "\n"
+)
+
+cat(
+  "Varianza acumulada conservada:",
+  round(varianza_conservada * 100, 2),
+  "%\n"
+)
+
+cat(
+  "Reducción de dimensiones:",
+  length(variables_finales),
+  "variables originales a",
+  cantidad_componentes,
+  "componentes principales.\n"
+)
+```
+
+Se seleccionaron los primeros **`r cantidad_componentes` componentes principales**, ya que con ellos se conserva aproximadamente el **`r round(varianza_conservada * 100, 2)`% de la varianza total**.
+
+La decisión no se basa en escoger arbitrariamente PC1 y PC2. Esos dos componentes se utilizarán principalmente para visualización, mientras que el modelo PCA + K-Means utilizará los **`r cantidad_componentes` componentes necesarios para superar el 85% de varianza acumulada**.
+
+## Gráfico de varianza explicada
+
+```{r grafico-varianza-pca, fig.width=9, fig.height=5}
+plot(
+  seq_along(varianza_explicada),
+  varianza_explicada * 100,
+  type = "b",
+  pch = 19,
+  col = "#1d4ed8",
+  xlab = "Componente principal",
+  ylab = "Varianza explicada (%)",
+  main = "Scree Plot"
+)
+
+abline(
+  v = cantidad_componentes,
+  col = "#dc2626",
+  lty = 2,
+  lwd = 2
+)
+
 grid()
 ```
 
+## Gráfico de varianza acumulada
 
+```{r grafico-varianza-acumulada, fig.width=9, fig.height=5}
+plot(
+  seq_along(varianza_acumulada),
+  varianza_acumulada * 100,
+  type = "b",
+  pch = 19,
+  col = "#16a34a",
+  xlab = "Cantidad de componentes",
+  ylab = "Varianza acumulada (%)",
+  main = "Varianza acumulada del PCA",
+  ylim = c(0, 100)
+)
 
-## Componentes principales
-```{r}
-cargas_pca <- pca_resultado$rotation[, 1:4]
-```
+abline(
+  h = umbral_varianza * 100,
+  col = "#dc2626",
+  lty = 2,
+  lwd = 2
+)
 
-## Gráfico de cargas
-```{r}
-par(mar = c(8, 4, 4, 2))
-barplot(t(cargas_pca), beside = TRUE,col = c("#1d4ed8", "#16a34a", "#dc2626", "#9333ea"),las = 2,cex.names = 0.7,main = "Cargas de las variables en los primeros 4 componentes",ylab = "Carga",legend.text = c("PC1", "PC2", "PC3", "PC4"),args.legend = list(x = "topright", cex = 0.8))
-par(mar = c(5, 4, 4, 2))
-```
+abline(
+  v = cantidad_componentes,
+  col = "#2563eb",
+  lty = 2
+)
 
-## Variables con mayor aporte
-```{r}
-cat("=== VARIABLES CON MAYOR APORTE A PC1 ===\n")
-cargas_pc1 <- sort(abs(pca_resultado$rotation[, 1]), decreasing = TRUE)
-names(cargas_pc1) <- rownames(pca_resultado$rotation)
-print(head(cargas_pc1, 5))
-
-cat("\n=== VARIABLES CON MAYOR APORTE A PC2 ===\n")
-cargas_pc2 <- sort(abs(pca_resultado$rotation[, 2]), decreasing = TRUE)
-names(cargas_pc2) <- rownames(pca_resultado$rotation)
-print(head(cargas_pc2, 5))
-```
-
-
-## Visualización PCA
-
-```{r}
-biplot(pca_resultado, col = c("#93c5fd", "#dc2626"),cex = 0.8,main = "Biplot - Componentes Principales 1 y 2")
-```
-
-## datos proyectados del PCA
-
-```{r}
-pca_datos <- as.data.frame(pca_resultado$x)
-
-plot(pca_datos$PC1, pca_datos$PC2,pch = 19,col = rgb(37, 99, 235, 100, maxColorValue = 255),xlab = paste0("PC1 (", round(varianza_explicada[1] * 100, 1), "%)"),ylab = paste0("PC2 (", round(varianza_explicada[2] * 100, 1), "%)"),main = "Proyección de muestras en PC1 y PC2")
 grid()
 ```
 
+## Variables con mayor aporte a los componentes
 
-## Interpretación del PCA
+Las cargas del PCA permiten identificar qué variables tienen mayor influencia en cada componente.
+
+```{r cargas-pca}
+cargas_pca <- pca_resultado$rotation[
+  ,
+  seq_len(cantidad_componentes),
+  drop = FALSE
+]
+
+tabla_aportes <- do.call(
+  rbind,
+  lapply(
+    seq_len(cantidad_componentes),
+    function(i) {
+
+      cargas <- pca_resultado$rotation[, i]
+
+      posiciones <- order(
+        abs(cargas),
+        decreasing = TRUE
+      )[1:3]
+
+      data.frame(
+        Componente = paste0("PC", i),
+        Variable = names(cargas)[posiciones],
+        Carga = round(cargas[posiciones], 3),
+        Aporte_Absoluto = round(
+          abs(cargas[posiciones]),
+          3
+        )
+      )
+    }
+  )
+)
+
+knitr::kable(
+  tabla_aportes,
+  caption = "Variables con mayor aporte en los componentes seleccionados",
+  align = c("c", "l", "c", "c")
+)
+```
+
+```{r variables-principales-pca}
+top_pc1 <- names(
+  sort(
+    abs(pca_resultado$rotation[, 1]),
+    decreasing = TRUE
+  )
+)[1:5]
+
+top_pc2 <- names(
+  sort(
+    abs(pca_resultado$rotation[, 2]),
+    decreasing = TRUE
+  )
+)[1:5]
+```
+
+## Visualización de las muestras mediante PCA
+
+Aunque para el modelado se conservarán `r cantidad_componentes` componentes, los dos primeros permiten representar visualmente la estructura principal de las muestras en un gráfico bidimensional.
+
+```{r visualizacion-pca, fig.width=8, fig.height=6}
+pca_datos <- as.data.frame(
+  pca_resultado$x
+)
+
+plot(
+  pca_datos$PC1,
+  pca_datos$PC2,
+  pch = 19,
+  col = rgb(
+    37,
+    99,
+    235,
+    100,
+    maxColorValue = 255
+  ),
+  xlab = paste0(
+    "PC1 (",
+    round(varianza_explicada[1] * 100, 1),
+    "%)"
+  ),
+  ylab = paste0(
+    "PC2 (",
+    round(varianza_explicada[2] * 100, 1),
+    "%)"
+  ),
+  main = "Proyección de las muestras en PC1 y PC2"
+)
+
+grid()
+```
+
+## Biplot del PCA
+
+```{r biplot-pca, fig.width=9, fig.height=7}
+biplot(
+  pca_resultado,
+  col = c("#93c5fd", "#dc2626"),
+  cex = 0.7,
+  main = "Biplot - Componentes Principales 1 y 2"
+)
+```
+
+## Hallazgos del PCA
+
+El PCA permitió reducir las **`r length(variables_finales)` variables originales a `r cantidad_componentes` componentes principales**, conservando aproximadamente el **`r round(varianza_conservada * 100, 2)`% de la variabilidad total**.
+
+Los dos primeros componentes explican conjuntamente aproximadamente el **`r round(varianza_acumulada[2] * 100, 2)`% de la varianza**. Este porcentaje es suficiente para obtener una representación visual útil, pero no para representar por sí solo toda la información que posteriormente será utilizada en el clustering.
+
+En PC1 destacan principalmente las variables **`r paste(top_pc1, collapse = ", ")`**, mientras que en PC2 presentan mayor aporte **`r paste(top_pc2, collapse = ", ")`**. Esto permite identificar qué características químicas participan con mayor intensidad en las principales direcciones de variación del dataset.
+
+El PCA también complementa los resultados del análisis bivariado, ya que algunas variables que previamente mostraron relaciones importantes vuelven a presentar aportes relevantes dentro de los componentes principales.
+
+Con estos resultados se obtiene una representación reducida que conserva la mayor parte de la información y que puede compararse posteriormente contra el uso directo de las 13 variables estandarizadas.
 
 
+# Selección del número de clusters
 
-# Modelado
+## Objetivo
 
+Antes de construir el modelo final es necesario determinar cuántos grupos representan de mejor manera la estructura de los datos.
+
+Para evitar seleccionar arbitrariamente una cantidad de clusters, se evaluaron diferentes valores de `k` mediante dos criterios:
+
+**Método del codo**, basado en la reducción de la suma de cuadrados dentro de los clusters, y **coeficiente de silueta**, que mide simultáneamente qué tan compactas son las observaciones dentro de su grupo y qué tan separadas se encuentran de los demás grupos.
+
+La evaluación se realiza tanto para las variables estandarizadas como para la representación reducida mediante PCA.
+
+## Datos PCA para clustering
+
+```{r datos-pca-clustering}
+datos_pca_modelo <- pca_resultado$x[
+  ,
+  seq_len(cantidad_componentes),
+  drop = FALSE
+]
+
+cat(
+  "Dimensiones utilizadas en PCA + K-Means:",
+  ncol(datos_pca_modelo),
+  "\n"
+)
+```
+
+## Funciones de evaluación
+
+```{r funciones-evaluacion-k}
+library(cluster)
+
+calcular_wss <- function(
+  datos,
+  valores_k = 1:10
+) {
+
+  sapply(
+    valores_k,
+    function(k) {
+
+      set.seed(123)
+
+      modelo <- kmeans(
+        datos,
+        centers = k,
+        nstart = 50
+      )
+
+      modelo$tot.withinss
+    }
+  )
+}
+
+
+calcular_silueta <- function(
+  datos,
+  valores_k = 2:10
+) {
+
+  sapply(
+    valores_k,
+    function(k) {
+
+      set.seed(123)
+
+      modelo <- kmeans(
+        datos,
+        centers = k,
+        nstart = 50
+      )
+
+      sil <- silhouette(
+        modelo$cluster,
+        dist(datos)
+      )
+
+      mean(sil[, 3])
+    }
+  )
+}
+
+
+detectar_codo <- function(
+  valores_k,
+  valores_wss
+) {
+
+  x <- (
+    valores_k - min(valores_k)
+  ) / (
+    max(valores_k) - min(valores_k)
+  )
+
+  y <- (
+    valores_wss - min(valores_wss)
+  ) / (
+    max(valores_wss) - min(valores_wss)
+  )
+
+  x1 <- x[1]
+  y1 <- y[1]
+
+  x2 <- x[length(x)]
+  y2 <- y[length(y)]
+
+  distancias <- abs(
+    (y2 - y1) * x -
+      (x2 - x1) * y +
+      x2 * y1 -
+      y2 * x1
+  ) / sqrt(
+    (y2 - y1)^2 +
+      (x2 - x1)^2
+  )
+
+  valores_k[
+    which.max(distancias)
+  ]
+}
+```
 
 ## Método del codo
 
-```{r}
-set.seed(123)
-wss <- numeric(15)
+```{r metodo-codo-comparacion, fig.width=11, fig.height=5}
+valores_k_codo <- 1:10
 
-for (k in 1:15) {
-  km_temp <- kmeans(wine_estandarizado, centers = k, nstart = 25)
-  wss[k] <- km_temp$tot.withinss
-}
+wss_estandarizado <- calcular_wss(
+  wine_estandarizado,
+  valores_k_codo
+)
 
-# Gráfico del codo
+wss_pca <- calcular_wss(
+  datos_pca_modelo,
+  valores_k_codo
+)
 
-plot(1:15, wss, type = "b", pch = 19,col = "blue",xlab = "Número de Clusters (k)", ylab = "Suma de Cuadrados Intra-Cluster",main = "Método del Codo")
+k_codo_estandarizado <- detectar_codo(
+  valores_k_codo,
+  wss_estandarizado
+)
+
+k_codo_pca <- detectar_codo(
+  valores_k_codo,
+  wss_pca
+)
+
+par(mfrow = c(1, 2))
+
+plot(
+  valores_k_codo,
+  wss_estandarizado,
+  type = "b",
+  pch = 19,
+  col = "#2563eb",
+  xlab = "Número de clusters (k)",
+  ylab = "Suma de cuadrados intra-cluster",
+  main = "Codo - Variables estandarizadas"
+)
+
+abline(
+  v = k_codo_estandarizado,
+  col = "#dc2626",
+  lty = 2,
+  lwd = 2
+)
+
 grid()
-abline(v = 3, col = "red", lty = 2)
-abline(v = 4, col = "blue", lty = 2, lwd = 2)
-```
 
+
+plot(
+  valores_k_codo,
+  wss_pca,
+  type = "b",
+  pch = 19,
+  col = "#16a34a",
+  xlab = "Número de clusters (k)",
+  ylab = "Suma de cuadrados intra-cluster",
+  main = "Codo - Componentes PCA"
+)
+
+abline(
+  v = k_codo_pca,
+  col = "#dc2626",
+  lty = 2,
+  lwd = 2
+)
+
+grid()
+
+par(mfrow = c(1, 1))
+```
 
 ## Método de silueta
-```{r}
-library(cluster)
-sil_promedio <- numeric(14)
 
-for (k in 2:15) {
-  set.seed(123)
-  km_temp <- kmeans(wine_estandarizado, centers = k, nstart = 25)
-  sil_temp <- silhouette(km_temp$cluster, dist(wine_estandarizado))
-  sil_promedio[k-1] <- mean(sil_temp[, 3])
-}
+```{r metodo-silueta-comparacion, fig.width=9, fig.height=6}
+valores_k_silueta <- 2:10
 
+siluetas_estandarizado <- calcular_silueta(
+  wine_estandarizado,
+  valores_k_silueta
+)
 
-# Gráfico de silueta
+siluetas_pca <- calcular_silueta(
+  datos_pca_modelo,
+  valores_k_silueta
+)
 
-plot(2:15, sil_promedio, type = "b", pch = 19,col = "darkgreen",xlab = "Número de Clusters (k)", ylab = "Coeficiente de Silueta Promedio",main = "Método de la Silueta")
+k_silueta_estandarizado <- valores_k_silueta[
+  which.max(siluetas_estandarizado)
+]
+
+k_silueta_pca <- valores_k_silueta[
+  which.max(siluetas_pca)
+]
+
+plot(
+  valores_k_silueta,
+  siluetas_estandarizado,
+  type = "b",
+  pch = 19,
+  col = "#2563eb",
+  ylim = range(
+    c(
+      siluetas_estandarizado,
+      siluetas_pca
+    )
+  ),
+  xlab = "Número de clusters (k)",
+  ylab = "Silueta promedio",
+  main = "Comparación del coeficiente de silueta"
+)
+
+lines(
+  valores_k_silueta,
+  siluetas_pca,
+  type = "b",
+  pch = 17,
+  col = "#16a34a"
+)
+
+legend(
+  "topright",
+  legend = c(
+    "Variables estandarizadas",
+    "PCA"
+  ),
+  col = c(
+    "#2563eb",
+    "#16a34a"
+  ),
+  pch = c(19, 17),
+  lty = 1,
+  bty = "n"
+)
+
 grid()
 ```
 
+## Tabla de evaluación de k
 
-## Selección del número de clusters
-```{r}
-cat("Codo sugiere: k = 3\n")
-cat("Silueta sugiere: k =", which.max(sil_promedio) + 1, "\n")
-cat("Máxima silueta:", round(max(sil_promedio), 3), "\n")
-cat("\nSe selecciona k = 3 por consistencia entre ambos métodos.\n")
+```{r tabla-evaluacion-k}
+tabla_k <- data.frame(
+  K = valores_k_silueta,
+  Silueta_Estandarizadas = round(
+    siluetas_estandarizado,
+    4
+  ),
+  Silueta_PCA = round(
+    siluetas_pca,
+    4
+  )
+)
+
+knitr::kable(
+  tabla_k,
+  caption = "Coeficiente de silueta para diferentes cantidades de clusters",
+  align = c("c", "c", "c")
+)
 ```
 
+## Selección y justificación del número de clusters
 
-# Modelo K-Means
+```{r seleccion-k}
+cat(
+  "Variables estandarizadas\n"
+)
 
-```{r}
-k_optimo <- 3
+cat(
+  "Codo sugerido: k =",
+  k_codo_estandarizado,
+  "\n"
+)
+
+cat(
+  "Mejor silueta: k =",
+  k_silueta_estandarizado,
+  "\n"
+)
+
+cat(
+  "Silueta máxima:",
+  round(
+    max(siluetas_estandarizado),
+    4
+  ),
+  "\n\n"
+)
+
+
+cat(
+  "PCA\n"
+)
+
+cat(
+  "Codo sugerido: k =",
+  k_codo_pca,
+  "\n"
+)
+
+cat(
+  "Mejor silueta: k =",
+  k_silueta_pca,
+  "\n"
+)
+
+cat(
+  "Silueta máxima:",
+  round(
+    max(siluetas_pca),
+    4
+  ),
+  "\n"
+)
+```
+
+Para la comparación de modelos se utilizará como criterio principal el **máximo coeficiente de silueta**, debido a que este permite evaluar simultáneamente cohesión y separación.
+
+El método del codo se utiliza como criterio complementario para verificar si existe una reducción importante en la variabilidad interna al aumentar el número de clusters.
+
+En las variables estandarizadas, el método del codo sugiere aproximadamente **k = `r k_codo_estandarizado`**, mientras que el mayor coeficiente de silueta se obtiene con **k = `r k_silueta_estandarizado`**.
+
+En la representación PCA, el método del codo sugiere aproximadamente **k = `r k_codo_pca`**, mientras que el mayor coeficiente de silueta se obtiene con **k = `r k_silueta_pca`**.
+
+De esta forma, el número de clusters no se selecciona arbitrariamente, sino a partir de la estructura observada en los datos.
+
+
+# Comparación de métodos de clustering
+
+## K-Means con las variables estandarizadas
+
+```{r kmeans-estandarizado}
+k_estandarizado <- k_silueta_estandarizado
+
 set.seed(123)
-kmeans_final <- kmeans(wine_estandarizado, centers = k_optimo, nstart = 25)
 
-# aqui se agregan clusters a los datos
-wine$Cluster <- factor(kmeans_final$cluster)
+modelo_kmeans_estandarizado <- kmeans(
+  wine_estandarizado,
+  centers = k_estandarizado,
+  nstart = 50
+)
 
-#Y aqui tendriamos los resultados
+silueta_modelo_estandarizado <- silhouette(
+  modelo_kmeans_estandarizado$cluster,
+  dist(wine_estandarizado)
+)
 
-cat("\n=== RESULTADOS DEL MODELO ===\n")
-cat("Tamaño de clusters:\n")
-print(kmeans_final$size)
+silueta_promedio_estandarizado <- mean(
+  silueta_modelo_estandarizado[, 3]
+)
 
-cat("\nPorcentaje por cluster:\n")
-print(round(kmeans_final$size / sum(kmeans_final$size) * 100, 1))
+cat(
+  "Número de clusters:",
+  k_estandarizado,
+  "\n"
+)
 
+cat(
+  "Silueta promedio:",
+  round(
+    silueta_promedio_estandarizado,
+    4
+  ),
+  "\n"
+)
+
+cat(
+  "Tamaño de clusters:",
+  paste(
+    modelo_kmeans_estandarizado$size,
+    collapse = ", "
+  ),
+  "\n"
+)
 ```
 
+## K-Means con los componentes PCA seleccionados
 
-## Visualización de clusters pero con el PCA
-```{r}
-varianza <- pca_resultado$sdev^2 / sum(pca_resultado$sdev^2)
-pca_datos <- as.data.frame(pca_resultado$x)
-pca_datos$Cluster <- wine$Cluster
+```{r kmeans-pca}
+k_pca <- k_silueta_pca
 
-#grafico
-library(ggplot2)
-ggplot(pca_datos, aes(x = PC1, y = PC2, color = Cluster)) +geom_point(size = 3, alpha = 0.8) +labs(title = "Clusters de Vinos - Proyección PCA",x = paste0("PC1 (", round(varianza[1]*100, 1), "%)"),y = paste0("PC2 (", round(varianza[2]*100, 1), "%)")) +theme_minimal() + scale_color_brewer(palette = "Set1")
+set.seed(123)
 
+modelo_kmeans_pca <- kmeans(
+  datos_pca_modelo,
+  centers = k_pca,
+  nstart = 50
+)
+
+silueta_modelo_pca <- silhouette(
+  modelo_kmeans_pca$cluster,
+  dist(datos_pca_modelo)
+)
+
+silueta_promedio_pca <- mean(
+  silueta_modelo_pca[, 3]
+)
+
+cat(
+  "Componentes utilizados:",
+  cantidad_componentes,
+  "\n"
+)
+
+cat(
+  "Número de clusters:",
+  k_pca,
+  "\n"
+)
+
+cat(
+  "Silueta promedio:",
+  round(
+    silueta_promedio_pca,
+    4
+  ),
+  "\n"
+)
+
+cat(
+  "Tamaño de clusters:",
+  paste(
+    modelo_kmeans_pca$size,
+    collapse = ", "
+  ),
+  "\n"
+)
 ```
 
+## Comparación de resultados
+
+```{r tabla-comparacion-modelos}
+comparacion_modelos <- data.frame(
+  Modelo = c(
+    "K-Means con variables estandarizadas",
+    "PCA + K-Means"
+  ),
+  Dimensiones = c(
+    ncol(wine_estandarizado),
+    ncol(datos_pca_modelo)
+  ),
+  K_Codo = c(
+    k_codo_estandarizado,
+    k_codo_pca
+  ),
+  K_Silueta = c(
+    k_estandarizado,
+    k_pca
+  ),
+  Silueta_Promedio = round(
+    c(
+      silueta_promedio_estandarizado,
+      silueta_promedio_pca
+    ),
+    4
+  ),
+  Tamaño_Clusters = c(
+    paste(
+      modelo_kmeans_estandarizado$size,
+      collapse = " - "
+    ),
+    paste(
+      modelo_kmeans_pca$size,
+      collapse = " - "
+    )
+  )
+)
+
+knitr::kable(
+  comparacion_modelos,
+  caption = "Comparación entre los dos enfoques de clustering",
+  align = c(
+    "l",
+    "c",
+    "c",
+    "c",
+    "c",
+    "c"
+  )
+)
+```
+
+La suma de cuadrados intra-cluster se utiliza para analizar el comportamiento de `k` dentro de cada representación, pero no se utiliza para decidir directamente cuál de los dos modelos es mejor, debido a que ambos trabajan con diferente cantidad de dimensiones.
+
+Para la comparación entre enfoques se utiliza principalmente el **coeficiente de silueta**, acompañado por la reducción de dimensionalidad y la interpretación de los grupos obtenidos.
+
+## Similitud entre las dos agrupaciones
+
+Para determinar si ambos enfoques están formando grupos semejantes, se utiliza el **Índice de Rand Ajustado (ARI)**.
+
+Un valor cercano a 1 indica que las dos agrupaciones son muy similares, mientras que valores cercanos a 0 indican una coincidencia mucho menor.
+
+```{r rand-ajustado}
+indice_rand_ajustado <- function(
+  grupo_1,
+  grupo_2
+) {
+
+  tabla <- table(
+    grupo_1,
+    grupo_2
+  )
+
+  combinaciones_2 <- function(x) {
+    x * (x - 1) / 2
+  }
+
+  suma_celdas <- sum(
+    combinaciones_2(tabla)
+  )
+
+  suma_filas <- sum(
+    combinaciones_2(
+      rowSums(tabla)
+    )
+  )
+
+  suma_columnas <- sum(
+    combinaciones_2(
+      colSums(tabla)
+    )
+  )
+
+  n <- sum(tabla)
+
+  total_pares <- combinaciones_2(n)
+
+  esperado <- (
+    suma_filas *
+      suma_columnas
+  ) / total_pares
+
+  maximo <- (
+    suma_filas +
+      suma_columnas
+  ) / 2
+
+  if (maximo == esperado) {
+    return(1)
+  }
+
+  (
+    suma_celdas -
+      esperado
+  ) / (
+    maximo -
+      esperado
+  )
+}
 
 
-# Evaluación del modelo
+ari_modelos <- indice_rand_ajustado(
+  modelo_kmeans_estandarizado$cluster,
+  modelo_kmeans_pca$cluster
+)
 
-## Calidad de los clusters
-```{r}
-sil_final <- silhouette(kmeans_final$cluster, dist(wine_estandarizado))
-sil_promedio_final <- mean(sil_final[, 3])
+cat(
+  "Índice de Rand Ajustado:",
+  round(ari_modelos, 4),
+  "\n"
+)
+```
 
-cat("=== EVALUACIÓN DE SEPARACIÓN ===\n")
-cat("Coeficiente de Silueta Promedio:", round(sil_promedio_final, 4), "\n")
+```{r tabla-cruzada-modelos}
+tabla_agrupaciones <- table(
+  KMeans_Estandarizado =
+    modelo_kmeans_estandarizado$cluster,
+  KMeans_PCA =
+    modelo_kmeans_pca$cluster
+)
 
-if (sil_promedio_final > 0.5) {
-  cat("Interpretación: BUENA separación entre clusters\n")
-} else if (sil_promedio_final > 0.25) {
-  cat("Interpretación: Separación ACEPTABLE\n")
+knitr::kable(
+  tabla_agrupaciones,
+  caption = "Comparación de las asignaciones entre ambos modelos"
+)
+```
+
+Los números asignados a los clusters son únicamente etiquetas y no significan que, por ejemplo, el Cluster 1 de un modelo deba corresponder directamente con el Cluster 1 del otro. Por esta razón, el Índice de Rand Ajustado permite realizar una comparación independiente del nombre asignado a cada grupo.
+
+## Hallazgos de la comparación
+
+El modelo construido directamente con las 13 variables estandarizadas obtuvo un coeficiente de silueta promedio de **`r round(silueta_promedio_estandarizado, 4)`**, utilizando **`r k_estandarizado` clusters**.
+
+El modelo basado en los **`r cantidad_componentes` componentes PCA seleccionados** obtuvo una silueta promedio de **`r round(silueta_promedio_pca, 4)`**, utilizando **`r k_pca` clusters**.
+
+El Índice de Rand Ajustado entre ambos resultados fue de **`r round(ari_modelos, 4)`**, lo que permite cuantificar hasta qué punto los dos enfoques producen agrupaciones semejantes.
+
+La comparación permite determinar si la reducción dimensional mediante PCA mantiene, mejora o modifica la estructura encontrada utilizando directamente las variables estandarizadas.
+
+
+# Selección del modelo final
+
+## Criterio de selección
+
+Para seleccionar el modelo final se utiliza como criterio principal el coeficiente de silueta promedio.
+
+Un valor mayor indica, en términos generales, una combinación más favorable entre cohesión interna y separación entre los clusters.
+
+```{r seleccionar-modelo-final}
+if (
+  silueta_promedio_pca >
+    silueta_promedio_estandarizado
+) {
+
+  nombre_modelo_final <- "PCA + K-Means"
+
+  modelo_final <- modelo_kmeans_pca
+
+  datos_modelo_final <- datos_pca_modelo
+
+  k_final <- k_pca
+
+  silueta_promedio_final <-
+    silueta_promedio_pca
+
 } else {
-  cat("Interpretación: Separación DÉBIL\n")
+
+  nombre_modelo_final <-
+    "K-Means con variables estandarizadas"
+
+  modelo_final <-
+    modelo_kmeans_estandarizado
+
+  datos_modelo_final <-
+    wine_estandarizado
+
+  k_final <-
+    k_estandarizado
+
+  silueta_promedio_final <-
+    silueta_promedio_estandarizado
 }
+
+
+cat(
+  "Modelo seleccionado:",
+  nombre_modelo_final,
+  "\n"
+)
+
+cat(
+  "Número de clusters:",
+  k_final,
+  "\n"
+)
+
+cat(
+  "Coeficiente de silueta:",
+  round(
+    silueta_promedio_final,
+    4
+  ),
+  "\n"
+)
 ```
 
+## Justificación del modelo seleccionado
 
-## Características de cada cluster
-```{r}
-medias_cluster <- aggregate(. ~ Cluster, data = wine, FUN = mean)
-cat("\n=== MEDIAS POR CLUSTER (DATOS ORIGINALES) ===\n")
-print(round(medias_cluster[, -1], 2))
+El enfoque seleccionado como modelo final es **`r nombre_modelo_final`**, ya que obtuvo el mejor coeficiente de silueta entre los dos métodos evaluados.
 
+Su silueta promedio fue de **`r round(silueta_promedio_final, 4)`**, frente a **`r round(if(nombre_modelo_final == "PCA + K-Means") silueta_promedio_estandarizado else silueta_promedio_pca, 4)`** obtenida por el otro enfoque.
+
+La elección se realiza a partir de los resultados observados y no se presupone que PCA necesariamente debe mejorar el clustering. Su utilidad se determina mediante la comparación directa de ambos modelos.
+
+
+# Modelo final
+
+## Resultados del modelo
+
+```{r resultados-modelo-final}
+cluster_final <- modelo_final$cluster
+
+wine_resultado <- wine[
+  ,
+  variables_finales,
+  drop = FALSE
+]
+
+wine_resultado$Cluster <- factor(
+  cluster_final
+)
+
+tabla_tamanos <- as.data.frame(
+  table(
+    Cluster = wine_resultado$Cluster
+  )
+)
+
+names(tabla_tamanos)[2] <- "Cantidad"
+
+tabla_tamanos$Porcentaje <- round(
+  tabla_tamanos$Cantidad /
+    sum(tabla_tamanos$Cantidad) *
+    100,
+  2
+)
+
+knitr::kable(
+  tabla_tamanos,
+  caption = "Distribución de las muestras por cluster",
+  align = c("c", "c", "c")
+)
 ```
 
+## Evaluación de la separación
 
-## Variables que diferencian los grupos
-```{r}
-cat("\n=== VARIABLES QUE DISTINGUEN LOS GRUPOS ===\n")
+```{r evaluacion-final-silueta}
+silueta_final <- silhouette(
+  cluster_final,
+  dist(datos_modelo_final)
+)
 
-resultados_anova <- data.frame()
+interpretar_silueta <- function(valor) {
 
-for (var in names(wine)[1:13]) {
-  formula <- as.formula(paste(var, "~ Cluster"))
-  aov_result <- aov(formula, data = wine)
-  p_val <- summary(aov_result)[[1]][["Pr(>F)"]][1]
-  f_val <- summary(aov_result)[[1]][["F value"]][1]
-  
-  resultados_anova <- rbind(resultados_anova, 
-                            data.frame(Variable = var, 
-                                       F_value = f_val, 
-                                       P_valor = p_val))
+  if (valor >= 0.50) {
+    return("buena")
+  }
+
+  if (valor >= 0.25) {
+    return("aceptable")
+  }
+
+  return("débil")
 }
 
-resultados_anova <- resultados_anova[order(resultados_anova$P_valor),]
+interpretacion_final <- interpretar_silueta(
+  silueta_promedio_final
+)
 
-cat("\nTodas las variables ordenadas por significancia:\n")
-for (i in 1:nrow(resultados_anova)) {
-  cat(sprintf("%2d. %-20s F = %8.2f   p = %s\n", 
-              i,
-              resultados_anova$Variable[i], 
-              resultados_anova$F_value[i],
-              format(resultados_anova$P_valor[i], scientific = TRUE, digits = 3)))
-}
+cat(
+  "Coeficiente de silueta promedio:",
+  round(
+    silueta_promedio_final,
+    4
+  ),
+  "\n"
+)
 
-cat("\n=== TOP 5 VARIABLES MÁS DISCRIMINANTES ===\n")
-for (i in 1:5) {
-  cat(i, ".", resultados_anova$Variable[i], 
-      " (F =", round(resultados_anova$F_value[i], 2), 
-      ", p =", format(resultados_anova$P_valor[i], scientific = TRUE, digits = 3), ")\n")
-}
+cat(
+  "Interpretación:",
+  interpretacion_final,
+  "separación entre clusters.\n"
+)
 ```
 
+## Gráfico de silueta del modelo final
+
+```{r grafico-silueta-final, fig.width=9, fig.height=6}
+plot(
+  silueta_final,
+  main = paste(
+    "Silueta del modelo final -",
+    nombre_modelo_final
+  )
+)
+```
+
+## Visualización de los clusters mediante PCA
+
+Independientemente de cuál modelo resulte seleccionado, los clusters pueden proyectarse sobre PC1 y PC2 para facilitar su visualización en dos dimensiones.
+
+```{r visualizacion-clusters-finales, fig.width=9, fig.height=6}
+pca_visual <- as.data.frame(
+  pca_resultado$x[, 1:2]
+)
+
+pca_visual$Cluster <- factor(
+  cluster_final
+)
+
+plot(
+  pca_visual$PC1,
+  pca_visual$PC2,
+  pch = 19,
+  col = as.integer(
+    pca_visual$Cluster
+  ),
+  xlab = paste0(
+    "PC1 (",
+    round(
+      varianza_explicada[1] * 100,
+      1
+    ),
+    "%)"
+  ),
+  ylab = paste0(
+    "PC2 (",
+    round(
+      varianza_explicada[2] * 100,
+      1
+    ),
+    "%)"
+  ),
+  main = paste(
+    "Clusters del modelo final -",
+    nombre_modelo_final
+  )
+)
+
+legend(
+  "topright",
+  legend = levels(
+    pca_visual$Cluster
+  ),
+  col = seq_len(k_final),
+  pch = 19,
+  title = "Cluster",
+  bty = "n"
+)
+
+grid()
+```
+
+## Características químicas de cada cluster
+
+Para interpretar los grupos se calculan las medias de las variables originales dentro de cada cluster.
+
+```{r medias-clusters-finales}
+medias_cluster <- aggregate(
+  . ~ Cluster,
+  data = wine_resultado,
+  FUN = mean
+)
+
+medias_cluster_presentacion <-
+  medias_cluster
+
+medias_cluster_presentacion[
+  ,
+  -1
+] <- round(
+  medias_cluster_presentacion[
+    ,
+    -1
+  ],
+  2
+)
+
+knitr::kable(
+  medias_cluster_presentacion,
+  caption = "Medias de las características químicas por cluster",
+  align = c(
+    "c",
+    rep(
+      "c",
+      length(variables_finales)
+    )
+  )
+)
+```
+
+## Variables que más diferencian los clusters
+
+Para identificar qué variables presentan mayores diferencias entre los grupos se utiliza el estadístico F y el tamaño de efecto `Eta²`.
+
+En este contexto se utilizan de manera **descriptiva**, ya que los propios clusters fueron construidos a partir de estas variables. Por esta razón, el objetivo no es realizar una prueba de significancia independiente, sino determinar qué características muestran una mayor separación entre los grupos obtenidos.
+
+```{r variables-diferenciadoras}
+resultados_diferenciacion <- data.frame()
+
+for (variable in variables_finales) {
+
+  modelo_aov <- aov(
+    wine_resultado[[variable]] ~
+      wine_resultado$Cluster
+  )
+
+  tabla_aov <- summary(
+    modelo_aov
+  )[[1]]
+
+  f_valor <- tabla_aov[
+    1,
+    "F value"
+  ]
+
+  ss_entre <- tabla_aov[
+    1,
+    "Sum Sq"
+  ]
+
+  ss_dentro <- tabla_aov[
+    2,
+    "Sum Sq"
+  ]
+
+  eta2 <- ss_entre /
+    (
+      ss_entre +
+        ss_dentro
+    )
+
+  resultados_diferenciacion <- rbind(
+    resultados_diferenciacion,
+    data.frame(
+      Variable = variable,
+      F_value = f_valor,
+      Eta2 = eta2
+    )
+  )
+}
+
+resultados_diferenciacion <-
+  resultados_diferenciacion[
+    order(
+      resultados_diferenciacion$Eta2,
+      decreasing = TRUE
+    ),
+  ]
+
+resultados_diferenciacion$F_value <-
+  round(
+    resultados_diferenciacion$F_value,
+    2
+  )
+
+resultados_diferenciacion$Eta2 <-
+  round(
+    resultados_diferenciacion$Eta2,
+    3
+  )
+
+knitr::kable(
+  resultados_diferenciacion,
+  caption = "Variables ordenadas según su capacidad descriptiva para diferenciar los clusters",
+  align = c("l", "c", "c")
+)
+```
+
+```{r top-variables-modelo}
+top_variables_modelo <-
+  head(
+    resultados_diferenciacion$Variable,
+    5
+  )
+
+cat(
+  "Variables que más diferencian los clusters:\n"
+)
+
+for (
+  i in seq_along(
+    top_variables_modelo
+  )
+) {
+
+  cat(
+    i,
+    ".",
+    top_variables_modelo[i],
+    "\n"
+  )
+}
+```
 
 ## Comparación de perfiles químicos
 
-```{r}
-medias_estand <- aggregate(wine_estandarizado, 
-                           by = list(Cluster = kmeans_final$cluster), 
-                           FUN = mean)
+Para facilitar la comparación entre clusters se utilizan nuevamente valores estandarizados. Los valores positivos representan características por encima del promedio general y los negativos representan características por debajo del promedio.
 
-# matriz para el gráfico
-matriz_perfiles <- as.matrix(medias_estand[, -1])
-rownames(matriz_perfiles) <- paste("Cluster", 1:3)
+```{r perfiles-quimicos-finales, fig.width=11, fig.height=7}
+datos_estandarizados_perfil <-
+  as.data.frame(
+    wine_estandarizado
+  )
 
-# gráfico de losperfiles
-matplot(t(matriz_perfiles), 
-        type = "l", 
-        lwd = 2,
-        col = c("red", "blue", "darkgreen"),
-        xlab = "Variables",
-        ylab = "Valor Estandarizado",
-        main = "Perfiles de los Clusters",
-        axes = FALSE)
-axis(1, at = 1:13, labels = names(wine)[1:13], las = 2, cex.axis = 0.7)
+datos_estandarizados_perfil$Cluster <-
+  factor(
+    cluster_final
+  )
+
+medias_estandarizadas_cluster <-
+  aggregate(
+    . ~ Cluster,
+    data = datos_estandarizados_perfil,
+    FUN = mean
+  )
+
+matriz_perfiles <-
+  as.matrix(
+    medias_estandarizadas_cluster[
+      ,
+      -1
+    ]
+  )
+
+matplot(
+  t(matriz_perfiles),
+  type = "l",
+  lwd = 2,
+  lty = 1,
+  col = seq_len(
+    nrow(matriz_perfiles)
+  ),
+  xlab = "Variables",
+  ylab = "Media estandarizada",
+  main = "Perfiles químicos de los clusters",
+  axes = FALSE
+)
+
+axis(
+  1,
+  at = seq_along(
+    variables_finales
+  ),
+  labels = variables_finales,
+  las = 2,
+  cex.axis = 0.7
+)
+
 axis(2)
-legend("topright", 
-       legend = paste("Cluster", 1:3), 
-       col = c("red", "blue", "darkgreen"), 
-       lwd = 2)
+
+legend(
+  "topright",
+  legend = paste(
+    "Cluster",
+    medias_estandarizadas_cluster$Cluster
+  ),
+  col = seq_len(
+    nrow(matriz_perfiles)
+  ),
+  lwd = 2,
+  bty = "n"
+)
+
 box()
 ```
 
+## Resumen de los perfiles por cluster
 
-## Respuesta a las preguntas de análisis
-### Pregunta 1: ¿Cuántos grupos naturales de vinos existen?
+```{r resumen-perfiles-clusters}
+resumen_perfiles <- do.call(
+  rbind,
+  lapply(
+    seq_len(
+      nrow(
+        medias_estandarizadas_cluster
+      )
+    ),
+    function(i) {
 
-Respuesta: Se identificaron 3 grupos naturales de vinos.
+      valores <- as.numeric(
+        medias_estandarizadas_cluster[
+          i,
+          -1
+        ]
+      )
 
-Justificación:
-- El método del codo muestra un quiebre en k=3
-- El método de silueta tiene su valor máximo en k=3 (0.56)
-- El coeficiente de silueta final es 0.54, lo que indica BUENA separación
-- Los 3 grupos son interpretables químicamente
+      names(valores) <-
+        variables_finales
 
-### Pregunta 2: ¿Qué variables distinguen mejor los grupos?
-1. Flavanoids 
-2. OD280 
-3. Proline
-4. Alcohol 
-5. Color_Intensity 
+      variables_altas <- names(
+        sort(
+          valores,
+          decreasing = TRUE
+        )
+      )[1:3]
+
+      variables_bajas <- names(
+        sort(
+          valores,
+          decreasing = FALSE
+        )
+      )[1:3]
+
+      data.frame(
+        Cluster =
+          medias_estandarizadas_cluster$Cluster[i],
+
+        Caracteristicas_mas_altas =
+          paste(
+            variables_altas,
+            collapse = ", "
+          ),
+
+        Caracteristicas_mas_bajas =
+          paste(
+            variables_bajas,
+            collapse = ", "
+          )
+      )
+    }
+  )
+)
+
+knitr::kable(
+  resumen_perfiles,
+  caption = "Características químicas que destacan en cada cluster",
+  align = c("c", "l", "l")
+)
+```
+
+## Hallazgos del modelo
+
+El modelo final seleccionado fue **`r nombre_modelo_final`** y permitió identificar **`r k_final` grupos de vinos**.
+
+La distribución de las muestras entre los clusters fue de **`r paste(modelo_final$size, collapse = ", ")` vinos**, respectivamente.
+
+El coeficiente de silueta promedio obtenido fue de **`r round(silueta_promedio_final, 4)`**, lo que corresponde a una separación **`r interpretacion_final`** según el criterio utilizado en este análisis.
+
+Las variables que presentan las mayores diferencias entre los perfiles obtenidos son **`r paste(top_variables_modelo, collapse = ", ")`**.
+
+El análisis de las medias estandarizadas permite observar que los grupos no representan niveles de calidad, sino **perfiles químicos diferentes**. Cada cluster combina de manera distinta las características medidas en las muestras de vino.
+
+Estos perfiles permiten responder la problemática desde una perspectiva de similitud química, identificando qué muestras comparten características y cuáles variables contribuyen principalmente a diferenciarlas.
 
 
+# Respuesta a las preguntas de análisis
 
-# Conclusiones
+## Pregunta principal
 
-## Principales hallazgos
+### ¿Es posible identificar grupos de vinos con características químicas similares y determinar cuáles variables contribuyen más a diferenciarlos?
 
-1. Calidad de los datos
- El dataset contiene 178 muestras de vino con 13 variables químicas
- No se encontraron valores faltantes ni registros duplicados
- Todas las variables son numéricas y aptas para análisis estadístico
+Sí. El análisis permitió identificar **`r k_final` grupos de vinos** mediante el modelo **`r nombre_modelo_final`**.
 
-2. Análisis exploratorio
-Se identificaron diferencias importantes de escala entre variables
-Proline y Malic_Acid presentan distribuciones asimétricas
-Se detectaron valores atípicos en 7 variables (dentro de lo esperado)
-Correlación fuerte entre Total_Phenols y Flavanoids (r = 0.865)
+Las variables que muestran una mayor capacidad para diferenciar los perfiles obtenidos son **`r paste(top_variables_modelo, collapse = ", ")`**.
 
-3. Reducción de dimensionalidad (PCA)
-Los primeros 2 componentes explican aproximadamente el 53.5% de la varianza
-PC1 está asociado principalmente con compuestos fenólicos
-PC2 está asociado con características de color y acidez
+El coeficiente de silueta del modelo final fue de **`r round(silueta_promedio_final, 4)`**, lo que indica una separación **`r interpretacion_final`** entre los grupos.
 
-4. Clustering (K-Means)
-Se identificaron 3 grupos naturales de vinos
-Coeficiente de silueta: 0.54 (BUENA separación)
-Tamaño de clusters: 45, 71 y 62 vinos
+## Pregunta 1: ¿Cuáles variables presentan mayor variabilidad y podrían contribuir más a diferenciar las muestras?
 
-5. Variables discriminantes
-Las 5 variables más importantes para la clasificación son:
-  1. Flavanoids
-  2. OD280
-  3. Proline
-  4. Alcohol
-  5. Color_Intensity
-Estas variables permiten diferenciar los perfiles de vino
+Las variables originales presentan escalas muy diferentes, por lo que comparar directamente sus desviaciones estándar puede dar mayor importancia a las variables con valores numéricos grandes.
 
-## Respuesta a la problemática principal
+Por esta razón se realizó la estandarización antes del modelado.
 
-La problemática principal consistía en identificar grupos de vinos con características químicas similares y determinar qué variables los diferencian.
+Después del análisis completo, las características que mostraron mayores diferencias entre los clusters fueron **`r paste(top_variables_modelo, collapse = ", ")`**.
 
-Resultados obtenidos:
+## Pregunta 2: ¿Qué comportamiento presentan las variables que mostraron posibles valores atípicos?
 
-Se logró identificar 3 grupos de vinos con perfiles químicos diferenciados
-La separación entre grupos es BUENA (silueta = 0.54)
-Se identificaron las variables clave para la clasificación: Flavanoids, OD280 y Proline
-Los clusters se interpretan como vinos de ALTA, MEDIA y BAJA calidad
-El modelo permite clasificar automáticamente nuevos vinos
+Durante el análisis exploratorio se detectaron valores atípicos mediante el método IQR en varias variables, especialmente en `Ash_Alcanity`, `Magnesium` y `Color_Intensity`.
 
-## Conclusión final
-El análisis de clustering mediante K-Means ha permitido identificar 3 grupos naturales de vinos basados en sus características químicas. El modelo presenta una separación buena y permite diferenciar claramente vinos de alta, media y baja calidad.
+Estos valores fueron conservados porque no se encontró evidencia suficiente para considerarlos errores de registro y su eliminación automática podría eliminar información real relacionada con la variabilidad química de las muestras.
 
-Este análisis demuestra que es posible clasificar vinos por su perfil químico utilizando técnicas de aprendizaje no supervisado. Los resultados obtenidos pueden ser de utilidad para:
-Control de calidad en la producción de vinos
-Clasificación automática de nuevos vinos
-Identificación de características deseables en vinos de alta calidad
+## Pregunta 3: ¿Los posibles valores atípicos representan casos aislados o forman parte del comportamiento natural de las variables?
 
-El proyecto cumple con el objetivo planteado inicialmente y proporciona una base sólida para futuros análisis que puedan incorporar más variables, más muestras o diferentes técnicas de modelado.
+La comparación realizada durante el análisis preexploratorio mostró que retirar temporalmente las observaciones con posibles outliers no modificaba de manera extrema el comportamiento general de las variables.
+
+Por esta razón, los valores fueron tratados como posibles observaciones naturales del dataset y se conservaron para el modelado.
+
+## Pregunta 4: ¿Qué variables presentan distribuciones asimétricas?
+
+El análisis univariado mostró que `Proline` y `Malic_Acid` presentan una asimetría positiva más marcada que otras características, observable tanto en sus histogramas como en las diferencias entre media y mediana.
+
+Estas características fueron conservadas y posteriormente estandarizadas antes del clustering.
+
+## Pregunta 5: ¿Qué relaciones existen entre las características químicas?
+
+```{r relacion-principal-eda}
+matriz_correlacion_modelado <- cor(
+  wine[
+    ,
+    variables_finales
+  ],
+  use = "complete.obs"
+)
+
+posiciones_correlacion <- which(
+  upper.tri(
+    matriz_correlacion_modelado
+  ),
+  arr.ind = TRUE
+)
+
+valores_correlacion <-
+  matriz_correlacion_modelado[
+    posiciones_correlacion
+  ]
+
+posicion_maxima <- which.max(
+  abs(
+    valores_correlacion
+  )
+)
+
+variable_correlacion_1 <-
+  rownames(
+    matriz_correlacion_modelado
+  )[
+    posiciones_correlacion[
+      posicion_maxima,
+      1
+    ]
+  ]
+
+variable_correlacion_2 <-
+  colnames(
+    matriz_correlacion_modelado
+  )[
+    posiciones_correlacion[
+      posicion_maxima,
+      2
+    ]
+  ]
+
+correlacion_principal <-
+  valores_correlacion[
+    posicion_maxima
+  ]
+```
+
+La relación lineal más intensa del dataset se presenta entre **`r variable_correlacion_1` y `r variable_correlacion_2`**, con una correlación aproximada de **`r round(correlacion_principal, 3)`**.
+
+El análisis bivariado mostró además que existen grupos de variables relacionadas con los compuestos fenólicos que comparten parte de su información, aunque no se encontraron correlaciones perfectas que justificaran eliminar automáticamente alguna característica.
+
+## Pregunta 6: ¿Era necesaria la estandarización antes del clustering?
+
+Sí.
+
+Las diferencias de escala entre las variables podían hacer que características con valores numéricos grandes dominaran las distancias utilizadas por K-Means.
+
+La estandarización permitió que las 13 variables participaran en una escala comparable tanto en PCA como en K-Means.
+
+## Pregunta 7: ¿Se pueden observar patrones o agrupaciones naturales entre las muestras?
+
+Sí.
+
+Los métodos de selección de `k` y el modelado posterior permitieron identificar **`r k_final` clusters** con perfiles químicos diferenciados.
+
+La evaluación final obtuvo una silueta promedio de **`r round(silueta_promedio_final, 4)`**, y las características químicas de cada grupo presentan diferencias que permiten interpretar los clusters como perfiles distintos dentro del dataset.
+
+
+# Hallazgos generales
+
+## Calidad y estructura de los datos
+
+El dataset contiene **`r nrow(wine)` muestras y `r length(variables_finales)` variables químicas numéricas**.
+
+No se encontraron valores faltantes ni registros duplicados, por lo que no fue necesario realizar imputación de datos ni eliminar observaciones repetidas antes del análisis.
+
+## Distribuciones y valores atípicos
+
+El análisis univariado permitió identificar diferencias importantes entre las distribuciones de las variables.
+
+`Proline` y `Malic_Acid` presentan una asimetría positiva más marcada, mientras que otras características presentan distribuciones más cercanas a la simetría.
+
+También se detectaron posibles valores atípicos en varias variables. Sin embargo, la comparación realizada durante el análisis preexploratorio indicó que su impacto sobre las estadísticas generales era limitado y no existía evidencia suficiente para eliminarlos automáticamente.
+
+## Relaciones entre variables
+
+El análisis bivariado mostró que algunas características químicas presentan asociaciones importantes.
+
+La relación más fuerte se encontró entre **`r variable_correlacion_1` y `r variable_correlacion_2`**, con una correlación aproximada de **`r round(correlacion_principal, 3)`**.
+
+Estas relaciones muestran que existe información compartida entre algunas características, pero no se encontraron correlaciones perfectas que justificaran eliminar variables antes del modelado.
+
+## Estandarización
+
+Las diferencias de escala observadas durante el EDA confirmaron la necesidad de estandarizar los datos.
+
+Este procedimiento evitó que variables con magnitudes numéricas mayores tuvieran una influencia desproporcionada en los algoritmos basados en distancias.
+
+## PCA
+
+El PCA permitió reducir las **`r length(variables_finales)` variables originales a `r cantidad_componentes` componentes principales**, conservando aproximadamente el **`r round(varianza_conservada * 100, 2)`% de la varianza total**.
+
+Esto demuestra que una parte importante de la información original puede representarse utilizando menos dimensiones.
+
+Las variables con mayor aporte en PC1 fueron **`r paste(top_pc1, collapse = ", ")`**, mientras que PC2 estuvo principalmente influenciado por **`r paste(top_pc2, collapse = ", ")`**.
+
+## Selección del número de clusters
+
+La cantidad de clusters fue evaluada mediante el método del codo y el coeficiente de silueta.
+
+En lugar de seleccionar `k` arbitrariamente, se compararon diferentes cantidades de grupos para identificar la estructura con mejor equilibrio entre cohesión y separación.
+
+El modelo final utiliza **`r k_final` clusters**.
+
+## Comparación entre K-Means y PCA + K-Means
+
+K-Means utilizando directamente las 13 variables estandarizadas obtuvo una silueta promedio de **`r round(silueta_promedio_estandarizado, 4)`**.
+
+PCA + K-Means, utilizando `r cantidad_componentes` componentes principales, obtuvo una silueta promedio de **`r round(silueta_promedio_pca, 4)`**.
+
+El Índice de Rand Ajustado entre ambos resultados fue **`r round(ari_modelos, 4)`**, mostrando el nivel de similitud entre las agrupaciones producidas por ambos enfoques.
+
+El modelo seleccionado finalmente fue **`r nombre_modelo_final`**, ya que presentó el mejor resultado según el criterio de silueta utilizado.
+
+## Perfiles químicos
+
+El modelo final permitió identificar grupos con características químicas diferenciadas.
+
+Las variables que presentan las mayores diferencias entre clusters son **`r paste(top_variables_modelo, collapse = ", ")`**.
+
+Los resultados no representan niveles de calidad del vino, sino distintos **perfiles químicos** dentro de las muestras analizadas.
+
+## Hallazgo integrador
+
+Los resultados obtenidos en las diferentes etapas se complementan entre sí.
+
+El EDA permitió identificar relaciones, diferencias de escala, asimetrías y posibles valores atípicos; PCA permitió resumir la información y detectar las principales direcciones de variación; y el clustering permitió transformar estas diferencias en grupos concretos de muestras con perfiles químicos similares.
+
+La comparación entre K-Means directo y PCA + K-Means permitió además comprobar si la reducción de dimensionalidad aportaba una mejora real al proceso, en lugar de asumir previamente que utilizar PCA produciría necesariamente mejores clusters.
+
+
+# Conclusiones generales
+
+El análisis permitió cumplir el objetivo principal del proyecto al estudiar las características químicas de las muestras e identificar grupos de vinos con perfiles semejantes mediante técnicas de aprendizaje no supervisado.
+
+La etapa exploratoria mostró que el dataset presenta buena calidad, sin valores faltantes ni registros duplicados. También permitió identificar diferencias importantes de escala, algunas distribuciones asimétricas, posibles valores atípicos y relaciones relevantes entre determinadas características químicas. Estos resultados justificaron conservar las 13 variables y realizar una estandarización antes del modelado.
+
+El PCA permitió reducir las 13 variables originales a **`r cantidad_componentes` componentes**, conservando aproximadamente el **`r round(varianza_conservada * 100, 2)`% de la varianza total**. Esta reducción permitió construir una segunda representación del dataset y evaluar si K-Means podía obtener una estructura más clara utilizando menos dimensiones.
+
+La cantidad de clusters fue seleccionada mediante la combinación del método del codo y el coeficiente de silueta, evitando establecer el número de grupos de forma arbitraria. Finalmente se utilizaron **`r k_final` clusters** en el modelo seleccionado.
+
+La comparación entre los dos enfoques mostró que K-Means con las variables estandarizadas obtuvo una silueta de **`r round(silueta_promedio_estandarizado, 4)`**, mientras que PCA + K-Means obtuvo **`r round(silueta_promedio_pca, 4)`**. A partir de estos resultados se seleccionó **`r nombre_modelo_final`** como modelo final.
+
+Las características que más contribuyen a diferenciar los grupos obtenidos son **`r paste(top_variables_modelo, collapse = ", ")`**. Los clusters representan diferentes combinaciones de características químicas y no deben interpretarse como categorías de alta, media o baja calidad, ya que el dataset no contiene una variable que permita establecer niveles de calidad.
+
+En conjunto, el proyecto demuestra que es posible identificar estructuras y perfiles químicos dentro de las muestras mediante técnicas exploratorias, reducción de dimensionalidad y clustering. Además, la comparación de dos estrategias de K-Means permite fundamentar la selección del modelo a partir de resultados medibles y no únicamente de una representación visual.
+
+Como limitación, el análisis se realiza sobre 178 muestras y no dispone de una variable externa de referencia que permita validar los grupos como categorías reales de calidad o clasificación comercial. Como trabajo futuro sería posible evaluar otros algoritmos de clustering, utilizar nuevas muestras o incorporar variables adicionales para estudiar si los perfiles identificados se mantienen en conjuntos de datos diferentes.
+
 
 # Recursos del proyecto
 
